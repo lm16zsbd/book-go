@@ -10,6 +10,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/pem"
+	"fmt"
 	"strings"
 )
 
@@ -65,7 +66,7 @@ func RSAEncrypt(publicKeyPEM, payload string) (string, error) {
 
 	block, _ := pem.Decode([]byte(key))
 	if block == nil {
-		return "", nil
+		return "", fmt.Errorf("failed to decode PEM block")
 	}
 
 	pub, err := x509.ParsePKIXPublicKey(block.Bytes)
@@ -75,7 +76,7 @@ func RSAEncrypt(publicKeyPEM, payload string) (string, error) {
 
 	rsaPub, ok := pub.(*rsa.PublicKey)
 	if !ok {
-		return "", nil
+		return "", fmt.Errorf("not an RSA public key")
 	}
 
 	encrypted, err := rsa.EncryptOAEP(sha256.New(), rand.Reader, rsaPub, []byte(payload), nil)

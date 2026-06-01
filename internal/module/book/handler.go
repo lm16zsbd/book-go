@@ -1,6 +1,7 @@
 package book
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -18,11 +19,12 @@ import (
 type Handler struct {
 	bookRepo *data.BookRepo
 	userRepo *data.UserRepo
+	redis    *data.RedisClient
 	cfg      *conf.Bootstrap
 }
 
-func NewHandler(bookRepo *data.BookRepo, userRepo *data.UserRepo, cfg *conf.Bootstrap) *Handler {
-	return &Handler{bookRepo: bookRepo, userRepo: userRepo, cfg: cfg}
+func NewHandler(bookRepo *data.BookRepo, userRepo *data.UserRepo, redis *data.RedisClient, cfg *conf.Bootstrap) *Handler {
+	return &Handler{bookRepo: bookRepo, userRepo: userRepo, redis: redis, cfg: cfg}
 }
 
 // @Summary      获取书籍列表
@@ -87,7 +89,7 @@ func (h *Handler) GetByID(w http.ResponseWriter, r *http.Request) {
 		"author":       firstLangS(book.Author),
 		"coverUrl":     book.CoverUrl,
 		"url":          book.Url,
-		"wrapKey":      getWrapKey(book.Key),
+		"wrapKey":      h.getWrapKey(r.Context(), bookID, book.Key),
 		"publisher":    book.Publisher,
 		"publishedAt":  "",
 		"isbn":         book.ISBN,
@@ -116,20 +118,39 @@ func (h *Handler) GetByID(w http.ResponseWriter, r *http.Request) {
 	httputil.RespondJSON(w, 200, result)
 }
 
-func getWrapKey(aesKey string) string {
+func (h *Handler) getWrapKey(ctx context.Context, bookID int64, aesKey string) string {
+	cacheKey := fmt.Sprintf("book:wrapkey:v3:%d", bookID)
+	if h.redis != nil {
+		if cached, err := h.redis.Get(ctx, cacheKey); err == nil && cached != "" {
+			return cached
+		}
+	}
+
 	if aesKey == "" {
 		aesKey = os.Getenv("AES_KEY")
 	}
 	if aesKey == "" {
 		return ""
 	}
+
 	rsaPubKey := os.Getenv("RSA_PUB_KEY")
 	if rsaPubKey == "" {
+		if h.redis != nil {
+			_ = h.redis.Set(ctx, cacheKey, aesKey, 7*24*time.Hour)
+		}
 		return aesKey
 	}
+
 	wrap, err := crypto.RSAEncrypt(rsaPubKey, aesKey)
-	if err != nil {
+	if err != nil || wrap == "" {
+		if h.redis != nil {
+			_ = h.redis.Set(ctx, cacheKey, aesKey, 7*24*time.Hour)
+		}
 		return aesKey
+	}
+
+	if h.redis != nil {
+		_ = h.redis.Set(ctx, cacheKey, wrap, 7*24*time.Hour)
 	}
 	return wrap
 }

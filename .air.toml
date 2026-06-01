@@ -1,0 +1,27 @@
+root = "."
+tmp_dir = "tmp"
+
+[build]
+  cmd = "PATH=$HOME/go/bin:$PATH swag init -g cmd/server/main.go -o docs && go build -o ./tmp/server ./cmd/server"
+  bin = "./tmp/server"
+  full_bin = ""
+  include_ext = ["go", "toml", "yaml", "yml"]
+  exclude_dir = ["tmp", "bin", ".git", ".idea", "node_modules", "docs"]
+  include_dir = []
+  exclude_file = []
+  delay = 0
+  stop_on_error = true
+  send_interrupt = false
+  kill_delay = "500ms"
+
+[log]
+  time = false
+
+[color]
+  main = "magenta"
+  watcher = "cyan"
+  build = "yellow"
+  runner = "green"
+
+[misc]
+  clean_on_exit = true

@@ -1,0 +1,65 @@
+workflow:
+  rules:
+    - if: $CI_COMMIT_BRANCH == "dev"
+
+stages:
+  - build
+  - deploy
+
+variables:
+  AWS_DEFAULT_REGION: ap-southeast-1
+  ECR_REPOSITORY: 404904371652.dkr.ecr.ap-southeast-1.amazonaws.com/serica-go-dev
+  TRAVIS_COMMIT: $CI_COMMIT_SHA
+  TRAVIS_JOB_NUMBER: $CI_PIPELINE_ID
+  TRAVIS_BRANCH: dev
+  DOCKER_DRIVER: overlay2
+
+build:
+  stage: build
+  image: docker:24.0.7
+  variables:
+    DOCKER_DRIVER: overlay2
+    DOCKER_BUILDKIT: 1
+
+  before_script:
+    - apk add --no-cache curl jq aws-cli docker-cli
+    - docker version
+
+  id_tokens:
+    AWS_ID_TOKEN:
+      aud: https://sts.amazonaws.com
+
+  script:
+    - >
+      CREDENTIALS=$(aws sts assume-role-with-web-identity
+      --role-arn $AWS_ECR_ROLE_ARN
+      --role-session-name "GitLabCI-ECR-Session"
+      --web-identity-token $AWS_ID_TOKEN
+      --duration-seconds 900)
+    - export AWS_ACCESS_KEY_ID=$(echo $CREDENTIALS | jq -r '.Credentials.AccessKeyId')
+    - export AWS_SECRET_ACCESS_KEY=$(echo $CREDENTIALS | jq -r '.Credentials.SecretAccessKey')
+    - export AWS_SESSION_TOKEN=$(echo $CREDENTIALS | jq -r '.Credentials.SessionToken')
+    - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login -u AWS --password-stdin $ECR_REPOSITORY
+    - docker pull $ECR_REPOSITORY:latest || true
+    - docker build
+      --cache-from $ECR_REPOSITORY:latest
+      --build-arg TRAVIS_COMMIT=$TRAVIS_COMMIT
+      --build-arg TRAVIS_JOB_NUMBER=$TRAVIS_JOB_NUMBER
+      --build-arg TRAVIS_BRANCH=$TRAVIS_BRANCH
+      -t $ECR_REPOSITORY:latest
+      -f Dockerfile.dev .
+    - docker push $ECR_REPOSITORY:latest
+  when: on_success
+
+deploy:
+  stage: deploy
+  image: alpine:latest
+  before_script:
+    - apk add --no-cache openssh-client
+  script:
+    - chmod 400 "$PRIVATE_KEY"
+    - ssh -i "$PRIVATE_KEY" -o StrictHostKeyChecking=no ubuntu@122.248.233.120 "cd /home/ubuntu/develop/serica-go && sh deploy.sh"
+    - echo "deploy done"
+  when: on_success
+  dependencies:
+    - build

@@ -1,0 +1,16 @@
+.idea
+*.log
+.env
+.env.*
+!.env.example
+bin/
+dist/
+tmp/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+.DS_Store
+vendor/
+__debug_bin*

@@ -1,0 +1,11 @@
+.git
+.gitlab-ci.yml
+.idea
+*.md
+bin
+dist
+tmp
+*.log
+.env
+.env.*
+.DS_Store

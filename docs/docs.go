@@ -119,62 +119,18 @@ const docTemplate = `{
                 "summary": "批量取消收藏",
                 "parameters": [
                     {
-                        "description": "书籍ID列表",
+                        "description": "批量取消收藏参数",
                         "name": "body",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/user.BatchCancelInput"
+                            "$ref": "#/definitions/user.BatchCancelFavouriteInput"
                         }
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": {
-                                "type": "boolean"
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/v1/client/books/search": {
-            "get": {
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Book"
-                ],
-                "summary": "搜索书籍",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "搜索关键词",
-                        "name": "keyword",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "default": 1,
-                        "description": "页码",
-                        "name": "pageIndex",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "default": 20,
-                        "description": "每页数量",
-                        "name": "pageSize",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
+                    "201": {
+                        "description": "Created",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -717,6 +673,48 @@ const docTemplate = `{
                 }
             }
         },
+        "/v1/client/search": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Book"
+                ],
+                "summary": "搜索书籍",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "搜索关键词",
+                        "name": "keyword",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "页码",
+                        "name": "pageIndex",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 20,
+                        "description": "每页数量",
+                        "name": "pageSize",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
         "/v1/client/search/history": {
             "get": {
                 "security": [
@@ -955,7 +953,7 @@ const docTemplate = `{
                 }
             }
         },
-        "user.BatchCancelInput": {
+        "user.BatchCancelFavouriteInput": {
             "type": "object",
             "properties": {
                 "bookIds": {
@@ -963,6 +961,15 @@ const docTemplate = `{
                     "items": {
                         "type": "integer"
                     }
+                },
+                "excludeIds": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "selectAll": {
+                    "type": "boolean"
                 }
             }
         },

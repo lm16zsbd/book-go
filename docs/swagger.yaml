@@ -9,12 +9,18 @@ definitions:
       name:
         type: string
     type: object
-  user.BatchCancelInput:
+  user.BatchCancelFavouriteInput:
     properties:
       bookIds:
         items:
           type: integer
         type: array
+      excludeIds:
+        items:
+          type: integer
+        type: array
+      selectAll:
+        type: boolean
     type: object
   user.LoginInput:
     properties:
@@ -250,54 +256,25 @@ paths:
       consumes:
       - application/json
       parameters:
-      - description: 书籍ID列表
+      - description: 批量取消收藏参数
         in: body
         name: body
         required: true
         schema:
-          $ref: '#/definitions/user.BatchCancelInput'
+          $ref: '#/definitions/user.BatchCancelFavouriteInput'
       produces:
       - application/json
       responses:
-        "200":
-          description: OK
+        "201":
+          description: Created
           schema:
-            additionalProperties:
-              type: boolean
+            additionalProperties: true
             type: object
       security:
       - BearerAuth: []
       summary: 批量取消收藏
       tags:
       - User
-  /v1/client/books/search:
-    get:
-      parameters:
-      - description: 搜索关键词
-        in: query
-        name: keyword
-        type: string
-      - default: 1
-        description: 页码
-        in: query
-        name: pageIndex
-        type: integer
-      - default: 20
-        description: 每页数量
-        in: query
-        name: pageSize
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            additionalProperties: true
-            type: object
-      summary: 搜索书籍
-      tags:
-      - Book
   /v1/client/booksKey:
     get:
       description: 返回加密后的书籍密钥
@@ -487,6 +464,34 @@ paths:
       summary: 更新阅读器配置
       tags:
       - Reader
+  /v1/client/search:
+    get:
+      parameters:
+      - description: 搜索关键词
+        in: query
+        name: keyword
+        type: string
+      - default: 1
+        description: 页码
+        in: query
+        name: pageIndex
+        type: integer
+      - default: 20
+        description: 每页数量
+        in: query
+        name: pageSize
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: 搜索书籍
+      tags:
+      - Book
   /v1/client/search/history:
     get:
       produces:

@@ -48,22 +48,18 @@ func (h *Handler) Home(w http.ResponseWriter, r *http.Request) {
 // @Success      200  {array}   map[string]interface{}
 // @Router       /v1/client/homepage [get]
 func (h *Handler) Homepage(w http.ResponseWriter, r *http.Request) {
-	pageIndex := u.QueryInt(r, "pageIndex", 1)
-	pageSize := u.QueryInt(r, "pageSize", 10)
-
-	offset := (pageIndex - 1) * pageSize
-
-	recommended, recTotal, _ := h.bookRepo.Paginate(data.BookFilter{Order: "DESC"}, offset, pageSize)
-	newest, newTotal, _ := h.bookRepo.Paginate(data.BookFilter{Order: "DESC"}, 0, pageSize)
+	recommended, recTotal, _ := h.bookRepo.Paginate(data.BookFilter{Order: "DESC"}, 0, 10)
+	newest, _, _ := h.bookRepo.Paginate(data.BookFilter{Order: "DESC"}, 0, 10)
 
 	sections := []map[string]interface{}{
 		{
 			"title": "電子書推介",
-			"items": u.NewPageResult(recommended, recTotal, pageIndex, pageSize),
+			"items": recommended,
+			"total": recTotal,
 		},
 		{
 			"title": "最新上架",
-			"items": u.NewPageResult(newest, newTotal, 1, pageSize),
+			"items": newest,
 		},
 	}
 

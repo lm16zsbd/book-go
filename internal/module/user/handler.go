@@ -225,17 +225,17 @@ func (h *Handler) GetFavourites(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) ToggleFavourite(w http.ResponseWriter, r *http.Request) {
 	userID := GetUserID(r)
 	bookID := PathInt(r, "bookId")
-	liked, err := h.userRepo.ToggleFavourite(userID, bookID)
+	isFavourite, err := h.userRepo.ToggleFavourite(userID, bookID)
 	if err != nil {
 		httputil.RespondJSON(w, 500, map[string]string{"error": err.Error()})
 		return
 	}
-	httputil.RespondJSON(w, 200, map[string]bool{"liked": liked})
+	httputil.RespondJSON(w, 200, map[string]bool{"isFavourite": isFavourite})
 }
 
 type BatchCancelFavouriteInput struct {
-	BookIDs   *[]int64 `json:"bookIds,omitempty"`
-	SelectAll *bool    `json:"selectAll,omitempty"`
+	BookIDs    *[]int64 `json:"bookIds,omitempty"`
+	SelectAll  *bool    `json:"selectAll,omitempty"`
 	ExcludeIDs *[]int64 `json:"excludeIds,omitempty"`
 }
 

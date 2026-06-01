@@ -5,6 +5,9 @@ import (
 	"encoding/json"
 	"net/http"
 	"strings"
+	"time"
+
+	"serica-go/internal/data"
 )
 
 type contextKey string
@@ -24,27 +27,15 @@ type AuthInfo struct {
 	Schema AuthSchema `json:"schema"`
 }
 
-func Auth(requiredSchemas ...AuthSchema) func(http.Handler) http.Handler {
+const sessionKeyPrefix = "session:token:"
+const sessionTTL = 7 * 24 * 60 * 60
+
+func Auth(userRepo *data.UserRepo, redis *data.RedisClient, requiredSchemas ...AuthSchema) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			authHeader := r.Header.Get("x-auth-schema")
-			if authHeader == "" {
-				if containsSchema(requiredSchemas, SchemaPublic) {
-					next.ServeHTTP(w, r)
-					return
-				}
-				writeUnauthorized(w, "missing x-auth-schema header")
-				return
-			}
-
-			schema := AuthSchema(strings.ToUpper(strings.Split(authHeader, ",")[0]))
-
-			if !containsSchema(requiredSchemas, schema) {
-				writeUnauthorized(w, "invalid auth schema")
-				return
-			}
-
-			if schema == SchemaPublic {
+			schemaHeader := r.Header.Get("x-auth-schema")
+			schema := resolveSchema(schemaHeader, requiredSchemas)
+			if schema == "" {
 				next.ServeHTTP(w, r)
 				return
 			}
@@ -66,9 +57,66 @@ func Auth(requiredSchemas ...AuthSchema) func(http.Handler) http.Handler {
 				return
 			}
 
-			writeUnauthorized(w, "invalid token")
+			userID, ok := resolveUser(r.Context(), redis, userRepo, token)
+			if !ok {
+				if containsSchema(requiredSchemas, SchemaPublic) {
+					next.ServeHTTP(w, r)
+					return
+				}
+				writeUnauthorized(w, "invalid token")
+				return
+			}
+
+			auth := &AuthInfo{UserID: userID, Schema: schema}
+			ctx := context.WithValue(r.Context(), AuthContextKey, auth)
+			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
+}
+
+func resolveSchema(schemaHeader string, required []AuthSchema) AuthSchema {
+	if schemaHeader == "" {
+		if containsSchema(required, SchemaPublic) {
+			return SchemaPublic
+		}
+		return ""
+	}
+	schema := AuthSchema(strings.ToUpper(strings.Split(schemaHeader, ",")[0]))
+	if containsSchema(required, schema) {
+		return schema
+	}
+	return ""
+}
+
+func resolveUser(ctx context.Context, redis *data.RedisClient, userRepo *data.UserRepo, token string) (int64, bool) {
+	if redis != nil {
+		var cached struct {
+			UserID int64  `json:"userId"`
+			Email  string `json:"email"`
+		}
+		if err := redis.GetJSON(ctx, sessionKeyPrefix+token, &cached); err == nil && cached.UserID > 0 {
+			return cached.UserID, true
+		}
+	}
+
+	session, err := userRepo.FindSessionByToken(token)
+	if err != nil || session == nil {
+		return 0, false
+	}
+
+	user, err := userRepo.FindByID(session.UserID)
+	if err != nil || user == nil {
+		return 0, false
+	}
+
+	if redis != nil {
+		_ = redis.SetJSON(ctx, sessionKeyPrefix+token, map[string]interface{}{
+			"userId": user.ID,
+			"email":  user.Email,
+		}, time.Duration(sessionTTL)*time.Second)
+	}
+
+	return user.ID, true
 }
 
 func GetAuth(ctx context.Context) *AuthInfo {
@@ -84,7 +132,7 @@ func extractBearerToken(authHeader string) string {
 	if len(parts) == 2 && strings.EqualFold(parts[0], "bearer") {
 		return parts[1]
 	}
-	return ""
+	return authHeader
 }
 
 func containsSchema(schemas []AuthSchema, s AuthSchema) bool {

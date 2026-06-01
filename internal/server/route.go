@@ -23,6 +23,7 @@ func NewRouter(
 	cfg *conf.Bootstrap,
 	d *data.Data,
 	redis *data.RedisClient,
+	userRepo *data.UserRepo,
 	userRoutes *user.Routes,
 	bookRoutes *book.Routes,
 	booksKeyRoutes *bookskey.Routes,
@@ -47,7 +48,7 @@ func NewRouter(
 
 	r.Route("/v1/client", func(r chi.Router) {
 		r.Use(svrMiddleware.RequireDB(d.Healthy))
-		r.Use(svrMiddleware.Auth(svrMiddleware.SchemaClient, svrMiddleware.SchemaPublic))
+		r.Use(svrMiddleware.Auth(userRepo, redis, svrMiddleware.SchemaClient, svrMiddleware.SchemaPublic))
 		userRoutes.Register(r)
 		bookRoutes.Register(r)
 		booksKeyRoutes.Register(r)
@@ -57,7 +58,7 @@ func NewRouter(
 
 	r.Route("/v1/client/reader", func(r chi.Router) {
 		r.Use(svrMiddleware.RequireDB(d.Healthy))
-		r.Use(svrMiddleware.Auth(svrMiddleware.SchemaClient, svrMiddleware.SchemaPublic))
+		r.Use(svrMiddleware.Auth(userRepo, redis, svrMiddleware.SchemaClient, svrMiddleware.SchemaPublic))
 		readerRoutes.Register(r)
 	})
 

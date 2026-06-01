@@ -1,0 +1,639 @@
+basePath: /
+definitions:
+  data.Category:
+    properties:
+      createdAt:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+    type: object
+  user.BatchCancelInput:
+    properties:
+      bookIds:
+        items:
+          type: integer
+        type: array
+    type: object
+  user.LoginInput:
+    properties:
+      email:
+        type: string
+    type: object
+  user.UpdateProfileInput:
+    properties:
+      avatar:
+        type: string
+      language:
+        type: string
+      name:
+        type: string
+      offset:
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: This is SericaMind backend api service
+  title: SericaMind Backend Service
+  version: 1.0.0
+paths:
+  /v1/client/bookmarks/{bookmarkId}:
+    delete:
+      parameters:
+      - description: 书签ID
+        in: path
+        name: bookmarkId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: boolean
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 删除书签
+      tags:
+      - User
+  /v1/client/books:
+    get:
+      description: 分页获取书籍
+      parameters:
+      - description: 搜索关键词
+        in: query
+        name: keyword
+        type: string
+      - default: 1
+        description: 页码
+        in: query
+        name: pageIndex
+        type: integer
+      - default: 20
+        description: 每页数量
+        in: query
+        name: pageSize
+        type: integer
+      - description: 排序
+        in: query
+        name: order
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: 获取书籍列表
+      tags:
+      - Book
+  /v1/client/books/{bookId}/annotations:
+    get:
+      parameters:
+      - description: 书籍ID
+        in: path
+        name: bookId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              additionalProperties: true
+              type: object
+            type: array
+      security:
+      - BearerAuth: []
+      summary: 获取批注列表
+      tags:
+      - User
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 书籍ID
+        in: path
+        name: bookId
+        required: true
+        type: integer
+      - description: 批注信息
+        in: body
+        name: body
+        required: true
+        schema:
+          additionalProperties: true
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 添加批注
+      tags:
+      - User
+  /v1/client/books/{bookId}/bookmarks:
+    get:
+      parameters:
+      - description: 书籍ID
+        in: path
+        name: bookId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              additionalProperties: true
+              type: object
+            type: array
+      security:
+      - BearerAuth: []
+      summary: 获取书签列表
+      tags:
+      - User
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 书籍ID
+        in: path
+        name: bookId
+        required: true
+        type: integer
+      - description: 书签信息
+        in: body
+        name: body
+        required: true
+        schema:
+          additionalProperties: true
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 添加书签
+      tags:
+      - User
+  /v1/client/books/{bookId}/favourite:
+    post:
+      parameters:
+      - description: 书籍ID
+        in: path
+        name: bookId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: boolean
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 收藏/取消收藏
+      tags:
+      - User
+  /v1/client/books/{id}:
+    get:
+      parameters:
+      - description: 书籍ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 获取书籍详情
+      tags:
+      - Book
+  /v1/client/books/cancelFavourite:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 书籍ID列表
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/user.BatchCancelInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: boolean
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 批量取消收藏
+      tags:
+      - User
+  /v1/client/books/search:
+    get:
+      parameters:
+      - description: 搜索关键词
+        in: query
+        name: keyword
+        type: string
+      - default: 1
+        description: 页码
+        in: query
+        name: pageIndex
+        type: integer
+      - default: 20
+        description: 每页数量
+        in: query
+        name: pageSize
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: 搜索书籍
+      tags:
+      - Book
+  /v1/client/booksKey:
+    get:
+      description: 返回加密后的书籍密钥
+      parameters:
+      - description: 书籍ID
+        in: query
+        name: bookId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取书籍AES密钥
+      tags:
+      - BooksKey
+  /v1/client/categories:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/data.Category'
+            type: array
+      summary: 获取分类列表
+      tags:
+      - Book
+  /v1/client/home:
+    get:
+      description: 获取首页 Banner、分类和书籍列表
+      parameters:
+      - default: 1
+        description: 页码
+        in: query
+        name: pageIndex
+        type: integer
+      - default: 10
+        description: 每页数量
+        in: query
+        name: pageSize
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: 首页数据
+      tags:
+      - Home
+  /v1/client/homepage:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              additionalProperties: true
+              type: object
+            type: array
+      summary: 首页栏目
+      tags:
+      - Home
+  /v1/client/login:
+    post:
+      consumes:
+      - application/json
+      description: 通过邮箱登录
+      parameters:
+      - description: 登录信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/user.LoginInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 用户登录
+      tags:
+      - User
+  /v1/client/reader-config:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取阅读器配置
+      tags:
+      - User
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 配置信息
+        in: body
+        name: body
+        required: true
+        schema:
+          additionalProperties: true
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 保存阅读器配置
+      tags:
+      - User
+  /v1/client/reader/config:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取阅读器配置
+      tags:
+      - Reader
+    patch:
+      consumes:
+      - application/json
+      parameters:
+      - description: 配置信息
+        in: body
+        name: body
+        required: true
+        schema:
+          additionalProperties: true
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 更新阅读器配置
+      tags:
+      - Reader
+  /v1/client/search/history:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              additionalProperties: true
+              type: object
+            type: array
+      security:
+      - BearerAuth: []
+      summary: 获取搜索历史
+      tags:
+      - Search
+  /v1/client/search/hot:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              additionalProperties: true
+              type: object
+            type: array
+      summary: 获取热门搜索
+      tags:
+      - Search
+  /v1/client/selection:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: 获取筛选选项
+      tags:
+      - Book
+  /v1/client/user/favourites:
+    get:
+      description: 分页获取当前用户的收藏书籍
+      parameters:
+      - default: 1
+        description: 页码
+        in: query
+        name: pageIndex
+        type: integer
+      - default: 12
+        description: 每页数量
+        in: query
+        name: pageSize
+        type: integer
+      - default: true
+        description: 是否倒序
+        in: query
+        name: desc
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取收藏列表
+      tags:
+      - User
+  /v1/client/user/profile:
+    get:
+      description: 获取当前登录用户信息
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 获取用户信息
+      tags:
+      - User
+    patch:
+      consumes:
+      - application/json
+      parameters:
+      - description: 更新信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/user.UpdateProfileInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: boolean
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 更新用户信息
+      tags:
+      - User
+  /v1/client/user/register:
+    post:
+      consumes:
+      - application/json
+      description: 通过邮箱注册/登录
+      parameters:
+      - description: 注册信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/user.LoginInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 用户注册
+      tags:
+      - User
+schemes:
+- http
+- https
+securityDefinitions:
+  BearerAuth:
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

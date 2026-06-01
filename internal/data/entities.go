@@ -38,29 +38,21 @@ type UserSession struct {
 func (UserSession) TableName() string { return "user_sessions" }
 
 type Book struct {
-	ID              int64      `gorm:"primaryKey;autoIncrement" json:"id"`
-	Title           string     `json:"title"`
-	Excerpt         string     `json:"excerpt"`
-	StockQuantity   int        `gorm:"column:stock_quantity" json:"stockQuantity"`
-	PublishingGroup string     `gorm:"column:publishing_group" json:"publishingGroup,omitempty"`
-	Imprints        string     `json:"imprints,omitempty"`
-	Author          string     `json:"author"`
-	TotalPages      int        `gorm:"column:total_pages" json:"totalPages,omitempty"`
-	Cost            string     `json:"cost,omitempty"`
-	CoverPhoto      string     `gorm:"column:cover_photo" json:"coverPhoto"`
-	BookPDF         string     `gorm:"column:book_pdf" json:"bookPdf"`
-	FileType        string     `gorm:"column:file_type;default:pdf" json:"fileType,omitempty"`
-	IsRecomm        bool       `gorm:"column:is_recomm" json:"isRecomm,omitempty"`
-	PreviewBook     string     `gorm:"column:preview_book" json:"previewBook,omitempty"`
-	AddedBy         int64      `gorm:"column:added_by" json:"addedBy"`
-	AddedAt         time.Time  `gorm:"column:added_at" json:"addedAt"`
-	PublishDate     *time.Time `gorm:"column:publish_date" json:"publishDate,omitempty"`
-	ISBN            string     `gorm:"column:isbn_no" json:"isbnNo"`
-	IsDeleted       bool       `gorm:"column:is_deleted;default:false" json:"isDeleted"`
-	DeletedAt       *time.Time `gorm:"column:deleted_at" json:"deletedAt,omitempty"`
-	CollectionType  string     `gorm:"column:collection_type" json:"collectionType,omitempty"`
-	CreatedAt       time.Time  `gorm:"autoCreateTime" json:"createdAt"`
-	UpdatedAt       time.Time  `gorm:"autoUpdateTime" json:"updatedAt"`
+	ID            int64      `gorm:"primaryKey;autoIncrement" json:"id"`
+	Title         string     `json:"title"`
+	Author        string     `json:"author"`
+	ISBN          string     `gorm:"column:isbn" json:"isbn,omitempty"`
+	Desc          string     `gorm:"type:text" json:"desc,omitempty"`
+	CoverUrl      string     `gorm:"column:cover_url" json:"coverUrl"`
+	FileType      string     `gorm:"column:file_type;default:pdf" json:"fileType,omitempty"`
+	Publisher     string     `json:"publisher,omitempty"`
+	PublishDate   *time.Time `gorm:"column:published_at" json:"publishDate,omitempty"`
+	Category      string     `gorm:"type:text" json:"category,omitempty"`
+	Language      string     `gorm:"type:varchar(20)" json:"language,omitempty"`
+	Key           string     `gorm:"column:key" json:"key,omitempty"`
+	Url           string     `gorm:"column:url" json:"url,omitempty"`
+	CreatedAt     time.Time  `gorm:"autoCreateTime" json:"createdAt"`
+	UpdatedAt     time.Time  `gorm:"autoUpdateTime" json:"updatedAt"`
 }
 
 func (Book) TableName() string { return "books" }

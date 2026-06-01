@@ -103,7 +103,7 @@ func (r *UserRepo) FindFavouritesPaginated(userID int64, offset, limit int, desc
 
 	var books []favBook
 	r.db.Model(&Book{}).
-		Select("books.id, books.title, books.author, books.cover_photo, books.excerpt, COALESCE(bp.process, 0) as process, COALESCE(bp.last_position, '') as last_position").
+		Select("books.id, books.title, books.author, books.cover_url, books.desc, COALESCE(bp.process, 0) as process, COALESCE(bp.last_position, '') as last_position").
 		Joins("LEFT JOIN book_reading_pos bp ON bp.user_id = ? AND bp.book_id = books.id", userID).
 		Where("books.id IN ?", bookIDs).
 		Find(&books)
@@ -140,10 +140,21 @@ func (r *UserRepo) ToggleFavourite(userID, bookID int64) (bool, error) {
 	return true, r.db.Create(&Favourite{UserID: userID, BookID: bookID}).Error
 }
 
-func (r *UserRepo) BatchCancelFavourite(userID int64, bookIDs []int64) error {
-	return r.db.Model(&Favourite{}).
-		Where("user_id = ? AND book_id IN ?", userID, bookIDs).
-		Update("deleted_at", gorm.Expr("CURRENT_TIMESTAMP")).Error
+func (r *UserRepo) BatchCancelFavourite(userID int64, bookIDs []int64) int64 {
+	result := r.db.Model(&Favourite{}).
+		Where("user_id = ? AND book_id IN ? AND deleted_at IS NULL", userID, bookIDs).
+		Update("deleted_at", gorm.Expr("CURRENT_TIMESTAMP"))
+	return result.RowsAffected
+}
+
+func (r *UserRepo) BatchCancelAllFavourite(userID int64, excludeIDs []int64) int64 {
+	q := r.db.Model(&Favourite{}).
+		Where("user_id = ? AND deleted_at IS NULL", userID)
+	if len(excludeIDs) > 0 {
+		q = q.Where("book_id NOT IN ?", excludeIDs)
+	}
+	result := q.Update("deleted_at", gorm.Expr("CURRENT_TIMESTAMP"))
+	return result.RowsAffected
 }
 
 func (r *UserRepo) FindBookmarks(userID, bookID int64) ([]Bookmark, error) {
@@ -199,7 +210,7 @@ func NewBookRepo(db *gorm.DB) *BookRepo {
 
 func (r *BookRepo) FindByID(id int64) (*Book, error) {
 	var b Book
-	err := r.db.Where("id = ? AND is_deleted = ?", id, false).First(&b).Error
+	err := r.db.Where("id = ?", id).First(&b).Error
 	if err != nil {
 		return nil, err
 	}
@@ -208,32 +219,52 @@ func (r *BookRepo) FindByID(id int64) (*Book, error) {
 
 func (r *BookRepo) ExistsByID(id int64) (bool, error) {
 	var count int64
-	err := r.db.Model(&Book{}).Where("id = ? AND is_deleted = ?", id, false).Count(&count).Error
+	err := r.db.Model(&Book{}).Where("id = ?", id).Count(&count).Error
 	return count > 0, err
 }
 
 type BookFilter struct {
-	Keyword  string
-	Category int64
-	Lang     string
-	Order    string
+	Keyword      string
+	Category     string
+	CategoryIDs  []int64
+	FileType     string
+	FileTypes    []string
+	PublishYear  string
+	PublishYears []string
+	Language     string
+	Languages    []string
+	Order        string
+	Desc         bool
 }
 
 func (r *BookRepo) Paginate(filter BookFilter, offset, limit int) ([]Book, int64, error) {
-	q := r.db.Model(&Book{}).Where("is_deleted = ?", false)
+	q := r.db.Model(&Book{})
 
 	if filter.Keyword != "" {
-		q = q.Where("title ILIKE ? OR author ILIKE ?", "%"+filter.Keyword+"%", "%"+filter.Keyword+"%")
+		q = q.Where("title ILIKE ? OR author ILIKE ? OR isbn ILIKE ?", "%"+filter.Keyword+"%", "%"+filter.Keyword+"%", "%"+filter.Keyword+"%")
+	}
+	if filter.Category != "" {
+		q = q.Where("category ILIKE ?", "%"+filter.Category+"%")
+	}
+	if len(filter.FileTypes) > 0 {
+		q = q.Where("file_type IN ?", filter.FileTypes)
+	}
+	if len(filter.PublishYears) > 0 {
+		q = q.Where("EXTRACT(YEAR FROM published_at) IN ?", filter.PublishYears)
+	}
+	if len(filter.Languages) > 0 {
+		q = q.Where("language IN ?", filter.Languages)
 	}
 
 	var total int64
 	q.Count(&total)
 
-	var books []Book
-	order := "added_at DESC"
-	if filter.Order == "asc" {
-		order = "added_at ASC"
-	} else if filter.Order == "title" {
+	books := make([]Book, 0)
+	order := "created_at DESC"
+	if !filter.Desc {
+		order = "created_at ASC"
+	}
+	if filter.Order == "title" {
 		order = "title ASC"
 	}
 	q.Order(order).Offset(offset).Limit(limit).Find(&books)
@@ -241,14 +272,14 @@ func (r *BookRepo) Paginate(filter BookFilter, offset, limit int) ([]Book, int64
 }
 
 func (r *BookRepo) Search(keyword string, offset, limit int) ([]Book, int64, error) {
-	q := r.db.Model(&Book{}).Where("is_deleted = ?", false)
+	q := r.db.Model(&Book{})
 	if keyword != "" {
-		q = q.Where("title ILIKE ? OR author ILIKE ?", "%"+keyword+"%", "%"+keyword+"%")
+		q = q.Where("title ILIKE ? OR author ILIKE ? OR isbn ILIKE ?", "%"+keyword+"%", "%"+keyword+"%", "%"+keyword+"%")
 	}
 	var total int64
 	q.Count(&total)
-	var books []Book
-	q.Order("added_at DESC").Offset(offset).Limit(limit).Find(&books)
+	books := make([]Book, 0)
+	q.Order("created_at DESC").Offset(offset).Limit(limit).Find(&books)
 	return books, total, nil
 }
 
@@ -315,37 +346,37 @@ func (r *BookRepo) FindDistinctAuthors() ([]string, error) {
 
 func (r *BookRepo) FindDistinctPublishers() ([]string, error) {
 	var names []string
-	err := r.db.Model(&Book{}).Where("publishing_group != ''").Distinct("publishing_group").Pluck("publishing_group", &names).Error
+	err := r.db.Model(&Book{}).Where("publisher != ''").Distinct("publisher").Pluck("publisher", &names).Error
 	return names, err
 }
 
 func (r *BookRepo) CountBooksByAuthor(author string) (int64, error) {
 	var count int64
-	err := r.db.Model(&Book{}).Where("author = ? AND is_deleted = ?", author, false).Count(&count).Error
+	err := r.db.Model(&Book{}).Where("author = ?", author).Count(&count).Error
 	return count, err
 }
 
 func (r *BookRepo) CountBooksByPublisher(publisher string) (int64, error) {
 	var count int64
-	err := r.db.Model(&Book{}).Where("publishing_group = ? AND is_deleted = ?", publisher, false).Count(&count).Error
+	err := r.db.Model(&Book{}).Where("publisher = ?", publisher).Count(&count).Error
 	return count, err
 }
 
 func (r *BookRepo) FindBooksByAuthor(author string, offset, limit int) ([]Book, int64, error) {
 	var total int64
-	q := r.db.Model(&Book{}).Where("author = ? AND is_deleted = ?", author, false)
+	q := r.db.Model(&Book{}).Where("author = ?", author)
 	q.Count(&total)
-	var books []Book
-	q.Order("added_at DESC").Offset(offset).Limit(limit).Find(&books)
+	books := make([]Book, 0)
+	q.Order("created_at DESC").Offset(offset).Limit(limit).Find(&books)
 	return books, total, nil
 }
 
 func (r *BookRepo) FindBooksByPublisher(publisher string, offset, limit int) ([]Book, int64, error) {
 	var total int64
-	q := r.db.Model(&Book{}).Where("publishing_group = ? AND is_deleted = ?", publisher, false)
+	q := r.db.Model(&Book{}).Where("publisher = ?", publisher)
 	q.Count(&total)
-	var books []Book
-	q.Order("added_at DESC").Offset(offset).Limit(limit).Find(&books)
+	books := make([]Book, 0)
+	q.Order("created_at DESC").Offset(offset).Limit(limit).Find(&books)
 	return books, total, nil
 }
 
@@ -369,20 +400,20 @@ func (r *BookRepo) FindCategoryByID(id int64) (*Category, error) {
 
 func (r *BookRepo) FindBooksByCategory(categoryID int64, offset, limit int) ([]Book, int64, error) {
 	var total int64
-	q := r.db.Model(&Book{}).Where("is_deleted = ?", false)
+	q := r.db.Model(&Book{})
 	q = q.Where("id IN (SELECT book_id FROM book_categories WHERE category_id = ?)", categoryID)
 	q.Count(&total)
-	var books []Book
-	q.Order("added_at DESC").Offset(offset).Limit(limit).Find(&books)
+	books := make([]Book, 0)
+	q.Order("created_at DESC").Offset(offset).Limit(limit).Find(&books)
 	return books, total, nil
 }
 
 func (r *BookRepo) FindSelectionYears() ([]int, error) {
 	var years []int
-	err := r.db.Model(&Book{}).Where("publish_date IS NOT NULL").
-		Select("DISTINCT EXTRACT(YEAR FROM publish_date)").
-		Order("EXTRACT(YEAR FROM publish_date) DESC").
-		Pluck("EXTRACT(YEAR FROM publish_date)", &years).Error
+	err := r.db.Model(&Book{}).Where("published_at IS NOT NULL").
+		Select("DISTINCT EXTRACT(YEAR FROM published_at)").
+		Order("EXTRACT(YEAR FROM published_at) DESC").
+		Pluck("EXTRACT(YEAR FROM published_at)", &years).Error
 	return years, err
 }
 

@@ -15,7 +15,7 @@ func NewRoutes(h *Handler) *Routes {
 func (r *Routes) Register(router chi.Router) {
 	router.Get("/books", r.Handler.List)
 	router.Get("/books/{id}", r.Handler.GetByID)
-	router.Get("/books/search", r.Handler.Search)
+	router.Get("/search", r.Handler.Search)
 
 	router.Get("/categories", r.Handler.Categories)
 	router.Get("/categories/all", r.Handler.CategoriesAll)

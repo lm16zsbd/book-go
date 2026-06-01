@@ -2,12 +2,20 @@ package book
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
+	"strings"
 	"time"
+
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials"
+	"github.com/aws/aws-sdk-go-v2/service/polly"
+	pollytypes "github.com/aws/aws-sdk-go-v2/service/polly/types"
 
 	u "serica-go/internal/module/user"
 	"serica-go/internal/pkg/httputil"
@@ -76,7 +84,7 @@ func (h *Handler) Trans(w http.ResponseWriter, r *http.Request) {
 	req.Header.Set("Authorization", "Bearer "+apiKey)
 	req.Header.Set("Content-Type", "application/json")
 
-	client := &http.Client{Timeout: 120 * time.Second}
+	client := httputil.NewHTTPClient(120 * time.Second)
 	resp, err := client.Do(req)
 	if err != nil {
 		httputil.RespondJSON(w, 502, map[string]string{"error": "Translation service error"})
@@ -134,6 +142,11 @@ func (h *Handler) TextToSpeech(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if input.Text == "" {
+		httputil.RespondJSON(w, 400, map[string]string{"error": "text is required"})
+		return
+	}
+
 	if input.LanguageCode == "" {
 		input.LanguageCode = "cmn-CN"
 	}
@@ -147,7 +160,7 @@ func (h *Handler) TextToSpeech(w http.ResponseWriter, r *http.Request) {
 		"en-GB":  "Emma",
 		"en-US":  "Joanna",
 	}
-	if input.SSMLGender == "MALE" && input.LanguageCode == "en-US" {
+	if input.LanguageCode == "en-US" && input.SSMLGender == "MALE" {
 		voiceMap["en-US"] = "Matthew"
 	}
 
@@ -156,47 +169,72 @@ func (h *Handler) TextToSpeech(w http.ResponseWriter, r *http.Request) {
 		voiceID = "Zhiyu"
 	}
 
+	pollyLang := input.LanguageCode
+	if pollyLang == "yue-HK" {
+		pollyLang = "yue-CN"
+	}
+
 	ssml := fmt.Sprintf(`<speak>%s</speak>`, escapeXML(input.Text))
 
-	payload := map[string]interface{}{
-		"OutputFormat": "mp3",
-		"Text":         ssml,
-		"TextType":     "ssml",
-		"VoiceId":      voiceID,
-		"Engine":       "neural",
-		"LanguageCode": normalizePollyLang(input.LanguageCode),
+	region := os.Getenv("AWS_REGION")
+	if region == "" {
+		region = "us-east-1"
+	}
+	accessKey := os.Getenv("AWS_ACCESS_KEY_ID")
+	secretKey := os.Getenv("AWS_SECRET_ACCESS_KEY")
+
+	cfg, err := config.LoadDefaultConfig(context.Background(),
+		config.WithRegion(region),
+		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(accessKey, secretKey, "")),
+	)
+	if err != nil {
+		httputil.RespondJSON(w, 500, map[string]string{"error": "failed to configure AWS: " + err.Error()})
+		return
 	}
 
-	_ = payload
+	pollyClient := polly.NewFromConfig(cfg)
 
-	httputil.RespondJSON(w, 500, map[string]string{"error": "TTS requires AWS Polly SDK integration"})
-}
-
-func normalizePollyLang(lang string) string {
-	if lang == "yue-HK" {
-		return "yue-CN"
+	output, err := pollyClient.SynthesizeSpeech(context.Background(), &polly.SynthesizeSpeechInput{
+		OutputFormat: pollytypes.OutputFormatMp3,
+		Text:         aws.String(ssml),
+		TextType:     pollytypes.TextTypeSsml,
+		VoiceId:      pollytypes.VoiceId(voiceID),
+		Engine:       pollytypes.EngineNeural,
+		LanguageCode: pollytypes.LanguageCode(pollyLang),
+	})
+	if err != nil {
+		httputil.RespondJSON(w, 500, map[string]string{"error": "TTS generation failed: " + err.Error()})
+		return
 	}
-	return lang
+
+	audioData, err := io.ReadAll(output.AudioStream)
+	if err != nil {
+		httputil.RespondJSON(w, 500, map[string]string{"error": "failed to read audio stream: " + err.Error()})
+		return
+	}
+
+	w.Header().Set("Content-Type", "audio/mpeg")
+	w.Header().Set("Content-Disposition", "inline; filename=\"output.mp3\"")
+	w.Write(audioData)
 }
 
 func escapeXML(s string) string {
-	s = replaceAll(s, "&", "&amp;")
-	s = replaceAll(s, "<", "&lt;")
-	s = replaceAll(s, ">", "&gt;")
-	s = replaceAll(s, "\"", "&quot;")
-	s = replaceAll(s, "'", "&apos;")
-	return s
-}
-
-func replaceAll(s, old, new string) string {
-	result := ""
-	for i := 0; i < len(s); i++ {
-		if i+len(old) <= len(s) && s[i:i+len(old)] == old {
-			result += new
-			i += len(old) - 1
-		} else {
-			result += string(s[i])
+	var b strings.Builder
+	for _, r := range s {
+		switch r {
+		case '&':
+			b.WriteString("&amp;")
+		case '<':
+			b.WriteString("&lt;")
+		case '>':
+			b.WriteString("&gt;")
+		case '"':
+			b.WriteString("&quot;")
+		case '\'':
+			b.WriteString("&apos;")
+		default:
+			b.WriteRune(r)
 		}
 	}
-	return result
+	return b.String()
 }

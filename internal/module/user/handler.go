@@ -233,24 +233,41 @@ func (h *Handler) ToggleFavourite(w http.ResponseWriter, r *http.Request) {
 	httputil.RespondJSON(w, 200, map[string]bool{"liked": liked})
 }
 
-type BatchCancelInput struct {
-	BookIDs []int64 `json:"bookIds"`
+type BatchCancelFavouriteInput struct {
+	BookIDs   *[]int64 `json:"bookIds,omitempty"`
+	SelectAll *bool    `json:"selectAll,omitempty"`
+	ExcludeIDs *[]int64 `json:"excludeIds,omitempty"`
 }
 
 // @Summary      批量取消收藏
 // @Tags         User
 // @Accept       json
 // @Produce      json
-// @Param        body body BatchCancelInput true "书籍ID列表"
-// @Success      200  {object}  map[string]bool
+// @Param        body body BatchCancelFavouriteInput true "批量取消收藏参数"
+// @Success      201  {object}  map[string]interface{}
 // @Security     BearerAuth
 // @Router       /v1/client/books/cancelFavourite [post]
 func (h *Handler) BatchCancelFavourite(w http.ResponseWriter, r *http.Request) {
 	userID := GetUserID(r)
-	var input BatchCancelInput
+	if userID == 0 {
+		httputil.RespondJSON(w, 401, map[string]string{"error": "unauthorized"})
+		return
+	}
+	var input BatchCancelFavouriteInput
 	json.NewDecoder(r.Body).Decode(&input)
-	h.userRepo.BatchCancelFavourite(userID, input.BookIDs)
-	httputil.RespondJSON(w, 200, map[string]bool{"ok": true})
+
+	cancelled := int64(0)
+	if input.SelectAll != nil && *input.SelectAll {
+		var excludeIDs []int64
+		if input.ExcludeIDs != nil {
+			excludeIDs = *input.ExcludeIDs
+		}
+		cancelled = h.userRepo.BatchCancelAllFavourite(userID, excludeIDs)
+	} else if input.BookIDs != nil && len(*input.BookIDs) > 0 {
+		cancelled = h.userRepo.BatchCancelFavourite(userID, *input.BookIDs)
+	}
+
+	httputil.RespondJSON(w, 201, map[string]interface{}{"cancelled": cancelled})
 }
 
 // @Summary      获取书签列表

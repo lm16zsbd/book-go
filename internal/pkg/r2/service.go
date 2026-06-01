@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"serica-go/internal/conf"
+	"serica-go/internal/pkg/httputil"
 )
 
 type Service struct {
@@ -43,7 +44,7 @@ func (s *Service) UploadBuffer(ctx context.Context, r2Key string, data []byte) e
 
 	req.Header.Set("Content-Type", "application/octet-stream")
 
-	client := &http.Client{Timeout: 30 * time.Second}
+	client := httputil.NewHTTPClient(30 * time.Second)
 	resp, err := client.Do(req)
 	if err != nil {
 		return fmt.Errorf("upload request: %w", err)

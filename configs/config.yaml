@@ -1,0 +1,51 @@
+server:
+  http:
+    addr: ":8080"
+  cors:
+    allowed_origins:
+      - "*"
+    allowed_methods:
+      - GET
+      - HEAD
+      - POST
+      - PUT
+      - PATCH
+      - DELETE
+      - OPTIONS
+
+data:
+  database:
+    driver: postgres
+    dsn: ""
+  redis:
+    addr: "localhost:6379"
+    password: ""
+    db: 0
+
+jwt:
+  admin_secret: ""
+  client_secret: ""
+
+booksKey:
+  aes_key: ""
+  aes_iv: ""
+  rsa_pub_key: ""
+
+email:
+  api_key: ""
+  from: ""
+
+r2:
+  account_id: ""
+  access_key_id: ""
+  secret_access_key: ""
+  bucket_name: ""
+  endpoint: ""
+
+openai:
+  api_key: ""
+
+aws:
+  region: "us-east-1"
+  access_key_id: ""
+  secret_access_key: ""

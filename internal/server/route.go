@@ -8,6 +8,7 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	httpSwagger "github.com/swaggo/http-swagger/v2"
 
+	"serica-go/docs"
 	"serica-go/internal/conf"
 	"serica-go/internal/data"
 	"serica-go/internal/module/book"
@@ -40,6 +41,15 @@ func NewRouter(
 	r.Get("/api/health", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		fmt.Fprintf(w, `{"status":"ok","dbHealthy":%v}`, d.Healthy)
+	})
+
+	r.Get("/api/doc.json", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(docs.SwaggerInfo.ReadDoc()))
+	})
+
+	r.Get("/api", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/api/", http.StatusMovedPermanently)
 	})
 
 	r.Get("/api/*", httpSwagger.Handler(

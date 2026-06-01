@@ -4,12 +4,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"strings"
+	"time"
 
 	"serica-go/internal/conf"
 	"serica-go/internal/data"
 	u "serica-go/internal/module/user"
 	"serica-go/internal/pkg/httputil"
+	"serica-go/internal/utl/crypto"
 )
 
 type Handler struct {
@@ -78,28 +81,57 @@ func (h *Handler) GetByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	detail := u.BookDetailResponse{Book: book}
-
-	if userID > 0 {
-		fav, _ := h.userRepo.FindFavourite(userID, bookID)
-		detail.IsFavourite = fav != nil
-
-		pos, _ := h.bookRepo.GetReadingPos(userID, bookID)
-		if pos != nil {
-			detail.Progress = pos
-		}
-
-		bookmarks, _ := h.userRepo.FindBookmarks(userID, bookID)
-		detail.Bookmarks = bookmarks
-
-		annotations, _ := h.userRepo.FindAnnotations(userID, bookID)
-		detail.Annotations = annotations
-
-		notes, _ := h.userRepo.FindBookNotes(userID, bookID)
-		detail.BookNotes = notes
+	result := map[string]interface{}{
+		"id":           book.ID,
+		"title":        firstLangS(book.Title),
+		"author":       firstLangS(book.Author),
+		"coverUrl":     book.CoverUrl,
+		"url":          book.Url,
+		"wrapKey":      getWrapKey(book.Key),
+		"publisher":    book.Publisher,
+		"publishedAt":  "",
+		"isbn":         book.ISBN,
+		"fileType":     book.FileType,
+		"language":     book.Language,
+		"desc":         book.Desc,
+		"isFavourite":  false,
+		"process":      0.0,
+		"lastPosition": "",
 	}
 
-	httputil.RespondJSON(w, 200, detail)
+	if book.PublishDate != nil {
+		result["publishedAt"] = book.PublishDate.Format(time.RFC3339)
+	}
+
+	if userID > 0 {
+		if fav, err := h.userRepo.FindFavourite(userID, bookID); err == nil && fav != nil {
+			result["isFavourite"] = true
+		}
+		if pos, err := h.bookRepo.GetReadingPos(userID, bookID); err == nil && pos != nil {
+			result["process"] = pos.Process
+			result["lastPosition"] = pos.LastPosition
+		}
+	}
+
+	httputil.RespondJSON(w, 200, result)
+}
+
+func getWrapKey(aesKey string) string {
+	if aesKey == "" {
+		aesKey = os.Getenv("AES_KEY")
+	}
+	if aesKey == "" {
+		return ""
+	}
+	rsaPubKey := os.Getenv("RSA_PUB_KEY")
+	if rsaPubKey == "" {
+		return aesKey
+	}
+	wrap, err := crypto.RSAEncrypt(rsaPubKey, aesKey)
+	if err != nil {
+		return aesKey
+	}
+	return wrap
 }
 
 // @Summary      搜索书籍
@@ -193,6 +225,17 @@ func (h *Handler) CategoriesPaginated(w http.ResponseWriter, r *http.Request) {
 		"page":  pageIndex,
 		"limit": pageSize,
 	})
+}
+
+func firstLangS(val string) string {
+	if val == "" {
+		return ""
+	}
+	idx := strings.Index(val, ",,")
+	if idx == -1 {
+		return val
+	}
+	return val[:idx]
 }
 
 func (h *Handler) CategoriesGetByID(w http.ResponseWriter, r *http.Request) {

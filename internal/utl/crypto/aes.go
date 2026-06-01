@@ -53,15 +53,20 @@ func AESEncrypt(hexKey string, data []byte) ([]byte, error) {
 }
 
 func RSAEncrypt(publicKeyPEM, payload string) (string, error) {
-	key := strings.ReplaceAll(publicKeyPEM, "\\n", "\n")
+	key := publicKeyPEM
+
 	if !strings.Contains(key, "-----BEGIN") {
-		decoded, err := base64.StdEncoding.DecodeString(publicKeyPEM)
+		clean := strings.NewReplacer("\\n", "", "\\r", "", " ", "", "\n", "", "\r", "").Replace(publicKeyPEM)
+		decoded, err := base64.StdEncoding.DecodeString(clean)
 		if err == nil {
-			str := string(decoded)
-			if strings.Contains(str, "-----BEGIN") {
-				key = str
-			}
+			key = string(decoded)
 		}
+	}
+
+	key = strings.ReplaceAll(key, "\\n", "\n")
+
+	if !strings.Contains(key, "-----BEGIN") {
+		return "", fmt.Errorf("no PEM header found in key")
 	}
 
 	block, _ := pem.Decode([]byte(key))

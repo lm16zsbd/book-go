@@ -1,23 +1,16 @@
-#!/bin/bash
-set -e
+serverName=serica-go
+environment=develop
 
-CONTAINER="serica-go"
-IMAGE="404904371652.dkr.ecr.ap-southeast-1.amazonaws.com/serica-go-dev:latest"
+awsAccountId="404904371652"
+region="ap-southeast-1"
+ecrUrl="$awsAccountId.dkr.ecr.$region.amazonaws.com"
+path="/home/ubuntu/$environment/$serverName"
+fileName="$path/docker-compose.yml"
 
-echo "=== Pulling latest image ==="
-docker pull $IMAGE
+docker-compose -f "$fileName" -p "$serverName-${environment}" down -v
 
-echo "=== Stopping old container ==="
-docker stop $CONTAINER 2>/dev/null || true
-docker rm $CONTAINER 2>/dev/null || true
+aws ecr get-login-password --region ap-southeast-1 | docker login --username AWS --password-stdin 404904371652.dkr.ecr.ap-southeast-1.amazonaws.com
+docker pull 404904371652.dkr.ecr.ap-southeast-1.amazonaws.com/serica-go-dev:latest
 
-echo "=== Starting new container ==="
-docker run -d \
-  --name $CONTAINER \
-  --restart unless-stopped \
-  -p 8080:8080 \
-  --env-file .env \
-  $IMAGE
-
-echo "=== Deploy done ==="
-docker ps --filter name=$CONTAINER
+docker-compose -f "$fileName" -p "$serverName-${environment}" pull
+docker-compose -f "$fileName" -p "$serverName-${environment}" up -d

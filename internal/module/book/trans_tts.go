@@ -26,6 +26,14 @@ type TransInput struct {
 	Language string `json:"language"`
 }
 
+// @Summary      AI翻译
+// @Tags         Book
+// @Accept       json
+// @Produce      json
+// @Param        body body TransInput true "翻译参数"
+// @Success      200  {string} string
+// @Security     BearerAuth
+// @Router       /v1/client/trans [post]
 func (h *Handler) Trans(w http.ResponseWriter, r *http.Request) {
 	userID := u.GetUserID(r)
 
@@ -135,6 +143,13 @@ type TTSInput struct {
 	SSMLGender   string `json:"ssmlGender"`
 }
 
+// @Summary      AWS Polly 文字转语音
+// @Tags         Book
+// @Accept       json
+// @Produce      audio/mpeg
+// @Param        body body TTSInput true "TTS参数"
+// @Success      200  {file}   audio/mpeg
+// @Router       /v1/client/text-to-speech [post]
 func (h *Handler) TextToSpeech(w http.ResponseWriter, r *http.Request) {
 	var input TTSInput
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {

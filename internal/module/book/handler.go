@@ -221,6 +221,11 @@ func (h *Handler) Categories(w http.ResponseWriter, r *http.Request) {
 	httputil.RespondJSON(w, 200, cats)
 }
 
+// @Summary      获取所有分类
+// @Tags         Book
+// @Produce      json
+// @Success      200  {array}   data.Category
+// @Router       /v1/client/categories/all [get]
 func (h *Handler) CategoriesAll(w http.ResponseWriter, r *http.Request) {
 	cats, err := h.bookRepo.ListCategories()
 	if err != nil {
@@ -249,6 +254,12 @@ func (h *Handler) CategoriesPaginated(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// @Summary      获取单个分类
+// @Tags         Book
+// @Produce      json
+// @Param        id path int true "分类ID"
+// @Success      200  {object}  data.Category
+// @Router       /v1/client/categories/{id} [get]
 func (h *Handler) CategoriesGetByID(w http.ResponseWriter, r *http.Request) {
 	id := u.PathInt(r, "id")
 	cat, err := h.bookRepo.FindCategoryByID(id)
@@ -259,6 +270,14 @@ func (h *Handler) CategoriesGetByID(w http.ResponseWriter, r *http.Request) {
 	httputil.RespondJSON(w, 200, cat)
 }
 
+// @Summary      获取分类下书籍
+// @Tags         Book
+// @Produce      json
+// @Param        id   path  int   true  "分类ID"
+// @Param        page query int   false "页码" default(1)
+// @Param        limit query int  false "每页数量" default(20)
+// @Success      200  {object}  map[string]interface{}
+// @Router       /v1/client/categories/{id}/books [get]
 func (h *Handler) CategoryBooks(w http.ResponseWriter, r *http.Request) {
 	id := u.PathInt(r, "id")
 	pageIndex := u.QueryInt(r, "page", 1)
@@ -273,6 +292,14 @@ func (h *Handler) CategoryBooks(w http.ResponseWriter, r *http.Request) {
 	httputil.RespondJSON(w, 200, u.NewPageResult(books, total, pageIndex, pageSize))
 }
 
+// @Summary      获取作者列表
+// @Tags         Book
+// @Produce      json
+// @Param        name  query string false "筛选名称"
+// @Param        page  query int    false "页码" default(1)
+// @Param        limit query int    false "每页数量" default(20)
+// @Success      200   {object}  map[string]interface{}
+// @Router       /v1/client/authors [get]
 func (h *Handler) Authors(w http.ResponseWriter, r *http.Request) {
 	name := r.URL.Query().Get("name")
 	pageIndex := u.QueryInt(r, "page", 1)
@@ -320,6 +347,14 @@ func (h *Handler) Authors(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// @Summary      获取作者下书籍
+// @Tags         Book
+// @Produce      json
+// @Param        name path string true "作者名"
+// @Param        page query int false "页码" default(1)
+// @Param        limit query int false "每页数量" default(20)
+// @Success      200  {object}  map[string]interface{}
+// @Router       /v1/client/authors/{name}/books [get]
 func (h *Handler) AuthorBooks(w http.ResponseWriter, r *http.Request) {
 	name := r.PathValue("name")
 	pageIndex := u.QueryInt(r, "page", 1)
@@ -334,6 +369,14 @@ func (h *Handler) AuthorBooks(w http.ResponseWriter, r *http.Request) {
 	httputil.RespondJSON(w, 200, u.NewPageResult(books, total, pageIndex, pageSize))
 }
 
+// @Summary      获取出版社列表
+// @Tags         Book
+// @Produce      json
+// @Param        name  query string false "筛选名称"
+// @Param        page  query int    false "页码" default(1)
+// @Param        limit query int    false "每页数量" default(20)
+// @Success      200   {object}  map[string]interface{}
+// @Router       /v1/client/publishers [get]
 func (h *Handler) Publishers(w http.ResponseWriter, r *http.Request) {
 	name := r.URL.Query().Get("name")
 	pageIndex := u.QueryInt(r, "page", 1)
@@ -381,6 +424,14 @@ func (h *Handler) Publishers(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// @Summary      获取出版社下书籍
+// @Tags         Book
+// @Produce      json
+// @Param        name path string true "出版社名"
+// @Param        page query int false "页码" default(1)
+// @Param        limit query int false "每页数量" default(20)
+// @Success      200  {object}  map[string]interface{}
+// @Router       /v1/client/publishers/{name}/books [get]
 func (h *Handler) PublisherBooks(w http.ResponseWriter, r *http.Request) {
 	name := r.PathValue("name")
 	pageIndex := u.QueryInt(r, "page", 1)
@@ -427,6 +478,13 @@ func (h *Handler) Selection(w http.ResponseWriter, r *http.Request) {
 	httputil.RespondJSON(w, 200, result)
 }
 
+// @Summary      获取阅读进度
+// @Tags         Book
+// @Produce      json
+// @Param        bookId query int true "书籍ID"
+// @Success      200  {object}  data.BookReadingPos
+// @Security     BearerAuth
+// @Router       /v1/client/reading-pos [get]
 func (h *Handler) GetReadingPos(w http.ResponseWriter, r *http.Request) {
 	userID := u.GetUserID(r)
 	bookID := u.PathInt(r, "bookId")
@@ -439,6 +497,14 @@ func (h *Handler) GetReadingPos(w http.ResponseWriter, r *http.Request) {
 	httputil.RespondJSON(w, 200, pos)
 }
 
+// @Summary      上报阅读进度
+// @Tags         Book
+// @Accept       json
+// @Produce      json
+// @Param        body body data.BookReadingPos true "阅读进度"
+// @Success      200  {object}  map[string]bool
+// @Security     BearerAuth
+// @Router       /v1/client/reading-pos [post]
 func (h *Handler) ReportReadingPos(w http.ResponseWriter, r *http.Request) {
 	userID := u.GetUserID(r)
 	var pos data.BookReadingPos
@@ -451,6 +517,13 @@ func (h *Handler) ReportReadingPos(w http.ResponseWriter, r *http.Request) {
 	httputil.RespondJSON(w, 200, map[string]bool{"ok": true})
 }
 
+// @Summary      获取书籍笔记列表
+// @Tags         Book Notes
+// @Produce      json
+// @Param        bookId query int true "书籍ID"
+// @Success      200  {array}   map[string]interface{}
+// @Security     BearerAuth
+// @Router       /v1/client/book-notes [get]
 func (h *Handler) BookNotesList(w http.ResponseWriter, r *http.Request) {
 	userID := u.GetUserID(r)
 	bookID := int64(u.QueryInt(r, "bookId", 0))
@@ -464,6 +537,14 @@ type CreateBookNoteInput struct {
 	Note   json.RawMessage `json:"note"`
 }
 
+// @Summary      创建/更新书籍笔记
+// @Tags         Book Notes
+// @Accept       json
+// @Produce      json
+// @Param        body body CreateBookNoteInput true "笔记内容"
+// @Success      200  {object}  map[string]interface{}
+// @Security     BearerAuth
+// @Router       /v1/client/book-notes [post]
 func (h *Handler) BookNotesCreate(w http.ResponseWriter, r *http.Request) {
 	userID := u.GetUserID(r)
 	var input CreateBookNoteInput
@@ -495,6 +576,15 @@ type UpdateBookNoteInput struct {
 	Note json.RawMessage `json:"note"`
 }
 
+// @Summary      更新书籍笔记
+// @Tags         Book Notes
+// @Accept       json
+// @Produce      json
+// @Param        id   path int                true "笔记ID"
+// @Param        body body CreateBookNoteInput true "笔记内容"
+// @Success      200  {object}  map[string]interface{}
+// @Security     BearerAuth
+// @Router       /v1/client/book-notes/{id} [patch]
 func (h *Handler) BookNotesUpdate(w http.ResponseWriter, r *http.Request) {
 	userID := u.GetUserID(r)
 	id := u.PathInt(r, "id")
@@ -511,6 +601,13 @@ func (h *Handler) BookNotesUpdate(w http.ResponseWriter, r *http.Request) {
 	httputil.RespondJSON(w, 200, note)
 }
 
+// @Summary      删除书籍笔记
+// @Tags         Book Notes
+// @Produce      json
+// @Param        id path int true "笔记ID"
+// @Success      200  {object}  map[string]bool
+// @Security     BearerAuth
+// @Router       /v1/client/book-notes/{id} [delete]
 func (h *Handler) BookNotesDelete(w http.ResponseWriter, r *http.Request) {
 	userID := u.GetUserID(r)
 	id := u.PathInt(r, "id")

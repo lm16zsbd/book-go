@@ -1,5 +1,40 @@
 basePath: /
 definitions:
+  book.CreateBookNoteInput:
+    type: object
+  book.TTSInput:
+    properties:
+      languageCode:
+        type: string
+      ssmlGender:
+        type: string
+      text:
+        type: string
+    type: object
+  book.TransInput:
+    properties:
+      data:
+        type: string
+      language:
+        type: string
+    type: object
+  data.BookReadingPos:
+    properties:
+      bookId:
+        type: integer
+      createdAt:
+        type: string
+      id:
+        type: integer
+      lastPosition:
+        type: string
+      process:
+        type: number
+      updatedAt:
+        type: string
+      userId:
+        type: integer
+    type: object
   data.Category:
     properties:
       createdAt:
@@ -45,6 +80,159 @@ info:
   title: SericaMind Backend Service
   version: 1.0.0
 paths:
+  /v1/client/authors:
+    get:
+      parameters:
+      - description: 筛选名称
+        in: query
+        name: name
+        type: string
+      - default: 1
+        description: 页码
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: 每页数量
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: 获取作者列表
+      tags:
+      - Book
+  /v1/client/authors/{name}/books:
+    get:
+      parameters:
+      - description: 作者名
+        in: path
+        name: name
+        required: true
+        type: string
+      - default: 1
+        description: 页码
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: 每页数量
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: 获取作者下书籍
+      tags:
+      - Book
+  /v1/client/book-notes:
+    get:
+      parameters:
+      - description: 书籍ID
+        in: query
+        name: bookId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              additionalProperties: true
+              type: object
+            type: array
+      security:
+      - BearerAuth: []
+      summary: 获取书籍笔记列表
+      tags:
+      - Book Notes
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 笔记内容
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/book.CreateBookNoteInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 创建/更新书籍笔记
+      tags:
+      - Book Notes
+  /v1/client/book-notes/{id}:
+    delete:
+      parameters:
+      - description: 笔记ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: boolean
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 删除书籍笔记
+      tags:
+      - Book Notes
+    patch:
+      consumes:
+      - application/json
+      parameters:
+      - description: 笔记ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 笔记内容
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/book.CreateBookNoteInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 更新书籍笔记
+      tags:
+      - Book Notes
   /v1/client/bookmarks/{bookmarkId}:
     delete:
       parameters:
@@ -311,6 +499,67 @@ paths:
       summary: 获取分类列表
       tags:
       - Book
+  /v1/client/categories/{id}:
+    get:
+      parameters:
+      - description: 分类ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/data.Category'
+      summary: 获取单个分类
+      tags:
+      - Book
+  /v1/client/categories/{id}/books:
+    get:
+      parameters:
+      - description: 分类ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - default: 1
+        description: 页码
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: 每页数量
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: 获取分类下书籍
+      tags:
+      - Book
+  /v1/client/categories/all:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/data.Category'
+            type: array
+      summary: 获取所有分类
+      tags:
+      - Book
   /v1/client/home:
     get:
       description: 获取首页 Banner 和分类
@@ -375,6 +624,63 @@ paths:
       summary: 用户登录
       tags:
       - User
+  /v1/client/publishers:
+    get:
+      parameters:
+      - description: 筛选名称
+        in: query
+        name: name
+        type: string
+      - default: 1
+        description: 页码
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: 每页数量
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: 获取出版社列表
+      tags:
+      - Book
+  /v1/client/publishers/{name}/books:
+    get:
+      parameters:
+      - description: 出版社名
+        in: path
+        name: name
+        required: true
+        type: string
+      - default: 1
+        description: 页码
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: 每页数量
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: 获取出版社下书籍
+      tags:
+      - Book
   /v1/client/reader-config:
     get:
       produces:
@@ -453,6 +759,50 @@ paths:
       summary: 更新阅读器配置
       tags:
       - Reader
+  /v1/client/reading-pos:
+    get:
+      parameters:
+      - description: 书籍ID
+        in: query
+        name: bookId
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/data.BookReadingPos'
+      security:
+      - BearerAuth: []
+      summary: 获取阅读进度
+      tags:
+      - Book
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 阅读进度
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/data.BookReadingPos'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: boolean
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 上报阅读进度
+      tags:
+      - Book
   /v1/client/search:
     get:
       parameters:
@@ -524,6 +874,50 @@ paths:
             additionalProperties: true
             type: object
       summary: 获取筛选选项
+      tags:
+      - Book
+  /v1/client/text-to-speech:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: TTS参数
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/book.TTSInput'
+      produces:
+      - audio/mpeg
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: file
+      summary: AWS Polly 文字转语音
+      tags:
+      - Book
+  /v1/client/trans:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 翻译参数
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/book.TransInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: AI翻译
       tags:
       - Book
   /v1/client/user/favourites:

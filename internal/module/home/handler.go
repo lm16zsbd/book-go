@@ -2,11 +2,11 @@ package home
 
 import (
 	"net/http"
-	"strings"
 
 	"serica-go/internal/data"
 	u "serica-go/internal/module/user"
 	"serica-go/internal/pkg/httputil"
+	"serica-go/internal/utl"
 )
 
 type Handler struct {
@@ -41,8 +41,8 @@ func (h *Handler) Home(w http.ResponseWriter, r *http.Request) {
 		}
 		bannerBooks = append(bannerBooks, map[string]interface{}{
 			"id":          b.ID,
-			"title":       firstLang(b.Title),
-			"author":      firstLang(b.Author),
+			"title":       utl.FirstLang(b.Title),
+			"author":      utl.FirstLang(b.Author),
 			"coverUrl":    b.CoverUrl,
 			"desc":        b.Desc,
 			"isFavourite": isFav,
@@ -53,17 +53,6 @@ func (h *Handler) Home(w http.ResponseWriter, r *http.Request) {
 		"banners":    bannerBooks,
 		"categories": cats,
 	})
-}
-
-func firstLang(val string) string {
-	if val == "" {
-		return ""
-	}
-	idx := strings.Index(val, ",,")
-	if idx == -1 {
-		return val
-	}
-	return val[:idx]
 }
 
 // @Summary      首页栏目

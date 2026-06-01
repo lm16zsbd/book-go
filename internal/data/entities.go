@@ -146,17 +146,6 @@ type Category struct {
 
 func (Category) TableName() string { return "categories" }
 
-type Banner struct {
-	ID        int64     `gorm:"primaryKey;autoIncrement" json:"id"`
-	ImageURL  string    `gorm:"column:image_url" json:"imageUrl"`
-	BookID    int64     `gorm:"column:book_id" json:"bookId,omitempty"`
-	Order     int       `json:"order"`
-	IsActive  bool      `gorm:"column:is_active;default:true" json:"isActive"`
-	CreatedAt time.Time `gorm:"autoCreateTime" json:"createdAt"`
-}
-
-func (Banner) TableName() string { return "banners" }
-
 type SampleBook struct {
 	ID        int64     `gorm:"primaryKey;autoIncrement" json:"id"`
 	BookID    int64     `gorm:"column:book_id" json:"bookId"`

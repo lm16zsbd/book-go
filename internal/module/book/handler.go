@@ -13,6 +13,7 @@ import (
 	"serica-go/internal/data"
 	u "serica-go/internal/module/user"
 	"serica-go/internal/pkg/httputil"
+	"serica-go/internal/utl"
 	"serica-go/internal/utl/crypto"
 )
 
@@ -85,8 +86,8 @@ func (h *Handler) GetByID(w http.ResponseWriter, r *http.Request) {
 
 	result := map[string]interface{}{
 		"id":           book.ID,
-		"title":        firstLangS(book.Title),
-		"author":       firstLangS(book.Author),
+		"title":        utl.FirstLang(book.Title),
+		"author":       utl.FirstLang(book.Author),
 		"coverUrl":     book.CoverUrl,
 		"url":          book.Url,
 		"wrapKey":      h.getWrapKey(r.Context(), bookID, book.Key),
@@ -248,17 +249,6 @@ func (h *Handler) CategoriesPaginated(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func firstLangS(val string) string {
-	if val == "" {
-		return ""
-	}
-	idx := strings.Index(val, ",,")
-	if idx == -1 {
-		return val
-	}
-	return val[:idx]
-}
-
 func (h *Handler) CategoriesGetByID(w http.ResponseWriter, r *http.Request) {
 	id := u.PathInt(r, "id")
 	cat, err := h.bookRepo.FindCategoryByID(id)
@@ -411,20 +401,30 @@ func (h *Handler) PublisherBooks(w http.ResponseWriter, r *http.Request) {
 // @Success      200  {object}  map[string]interface{}
 // @Router       /v1/client/selection [get]
 func (h *Handler) Selection(w http.ResponseWriter, r *http.Request) {
-	cats, _ := h.bookRepo.ListCategories()
-	years, _ := h.bookRepo.FindSelectionYears()
-
-	categoryNames := make([]string, len(cats))
-	for i, c := range cats {
-		categoryNames[i] = c.Name
+	cacheKey := "books:selection"
+	if h.redis != nil {
+		var cached map[string]interface{}
+		if err := h.redis.GetJSON(r.Context(), cacheKey, &cached); err == nil && cached != nil {
+			httputil.RespondJSON(w, 200, cached)
+			return
+		}
 	}
 
-	httputil.RespondJSON(w, 200, map[string]interface{}{
+	cats, _ := h.bookRepo.FindDistinctCategories()
+	years, _ := h.bookRepo.FindSelectionYears()
+
+	result := map[string]interface{}{
 		"language":    []string{"繁體中文", "英文", "簡體中文"},
 		"fileType":    []string{"pdf", "epub"},
-		"category":    categoryNames,
+		"category":    cats,
 		"publishedAt": years,
-	})
+	}
+
+	if h.redis != nil {
+		_ = h.redis.SetJSON(r.Context(), cacheKey, result, time.Hour)
+	}
+
+	httputil.RespondJSON(w, 200, result)
 }
 
 func (h *Handler) GetReadingPos(w http.ResponseWriter, r *http.Request) {

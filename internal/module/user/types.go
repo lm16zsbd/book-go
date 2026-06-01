@@ -4,7 +4,6 @@ import (
 	"net/http"
 	"strconv"
 
-	"serica-go/internal/data"
 	"serica-go/internal/server/middleware"
 )
 
@@ -62,13 +61,4 @@ func NewPageResult(items interface{}, total int64, pageIndex, pageSize int) Page
 		totalPages++
 	}
 	return PageResult{Items: items, Total: total, PageIndex: pageIndex, PageSize: pageSize, TotalPages: totalPages}
-}
-
-type BookDetailResponse struct {
-	Book        *data.Book           `json:"book"`
-	IsFavourite bool                 `json:"isFavourite"`
-	Progress    *data.BookReadingPos `json:"progress,omitempty"`
-	Bookmarks   []data.Bookmark      `json:"bookmarks,omitempty"`
-	Annotations []data.Annotation    `json:"annotations,omitempty"`
-	BookNotes   []data.BookNote      `json:"bookNotes,omitempty"`
 }

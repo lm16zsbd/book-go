@@ -92,13 +92,13 @@ func (r *UserRepo) FindFavouritesPaginated(userID int64, offset, limit int, desc
 	}
 
 	type favBook struct {
-		ID           int64   `json:"id"`
-		Title        string  `json:"title"`
-		Author       string  `json:"author"`
-		CoverPhoto   string  `json:"coverUrl"`
-		Excerpt      string  `json:"desc"`
-		Process      float64 `json:"process"`
-		LastPosition string  `json:"lastPosition"`
+		ID           int64   `gorm:"column:id"`
+		Title        string  `gorm:"column:title"`
+		Author       string  `gorm:"column:author"`
+		CoverUrl     string  `gorm:"column:cover_url"`
+		Desc         string  `gorm:"column:desc"`
+		Process      float64 `gorm:"column:process"`
+		LastPosition string  `gorm:"column:last_position"`
 	}
 
 	var books []favBook
@@ -120,8 +120,8 @@ func (r *UserRepo) FindFavouritesPaginated(userID int64, offset, limit int, desc
 				"id":           b.ID,
 				"title":        b.Title,
 				"author":       b.Author,
-				"coverUrl":     b.CoverPhoto,
-				"desc":         b.Excerpt,
+				"coverUrl":     b.CoverUrl,
+				"desc":         b.Desc,
 				"process":      b.Process,
 				"lastPosition": b.LastPosition,
 			})
@@ -340,13 +340,7 @@ func (r *BookRepo) ListCategories() ([]Category, error) {
 	return cats, err
 }
 
-// ----- Banners -----
-func (r *BookRepo) ListBanners() ([]Banner, error) {
-	var banners []Banner
-	err := r.db.Where("is_active = ?", true).Order("\"order\" ASC").Find(&banners).Error
-	return banners, err
-}
-
+// ----- Authors -----
 func (r *BookRepo) FindDistinctAuthors() ([]string, error) {
 	var names []string
 	err := r.db.Model(&Book{}).Where("author != ''").Distinct("author").Pluck("author", &names).Error
@@ -424,6 +418,19 @@ func (r *BookRepo) FindSelectionYears() ([]int, error) {
 		Order("EXTRACT(YEAR FROM published_at) DESC").
 		Pluck("EXTRACT(YEAR FROM published_at)", &years).Error
 	return years, err
+}
+
+func (r *BookRepo) FindDistinctCategories() ([]string, error) {
+	var categories []string
+	err := r.db.Model(&Book{}).
+		Select("DISTINCT UNNEST(category)").
+		Where("category IS NOT NULL AND array_length(category, 1) > 0").
+		Order("1 ASC").
+		Pluck("unnest", &categories).Error
+	if err != nil {
+		return nil, err
+	}
+	return categories, nil
 }
 
 // ----- Book Notes -----

@@ -223,6 +223,15 @@ func (r *BookRepo) ExistsByID(id int64) (bool, error) {
 	return count > 0, err
 }
 
+func (r *BookRepo) FindByIDs(ids []int64) ([]Book, error) {
+	if len(ids) == 0 {
+		return []Book{}, nil
+	}
+	var books []Book
+	err := r.db.Where("id IN ?", ids).Find(&books).Error
+	return books, err
+}
+
 type BookFilter struct {
 	Keyword      string
 	Category     string

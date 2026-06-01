@@ -2,6 +2,7 @@ package home
 
 import (
 	"net/http"
+	"strings"
 
 	"serica-go/internal/data"
 	u "serica-go/internal/module/user"
@@ -18,28 +19,51 @@ func NewHandler(bookRepo *data.BookRepo, userRepo *data.UserRepo, redis *data.Re
 	return &Handler{bookRepo: bookRepo, userRepo: userRepo, redis: redis}
 }
 
+var homeBannerIds = []int64{103, 202, 183, 153, 193, 163}
+
 // @Summary      首页数据
-// @Description  获取首页 Banner、分类和书籍列表
+// @Description  获取首页 Banner 和分类
 // @Tags         Home
 // @Produce      json
-// @Param        pageIndex query  int  false  "页码"  default(1)
-// @Param        pageSize  query  int  false  "每页数量"  default(10)
 // @Success      200  {object}  map[string]interface{}
 // @Router       /v1/client/home [get]
 func (h *Handler) Home(w http.ResponseWriter, r *http.Request) {
-	pageIndex := u.QueryInt(r, "pageIndex", 1)
-	pageSize := u.QueryInt(r, "pageSize", 10)
-
-	offset := (pageIndex - 1) * pageSize
-	books, total, _ := h.bookRepo.Paginate(data.BookFilter{}, offset, pageSize)
-	banners, _ := h.bookRepo.ListBanners()
+	books, _ := h.bookRepo.FindByIDs(homeBannerIds)
 	cats, _ := h.bookRepo.ListCategories()
 
+	userID := u.GetUserID(r)
+	bannerBooks := make([]map[string]interface{}, 0, len(books))
+	for _, b := range books {
+		isFav := false
+		if userID > 0 {
+			fav, err := h.userRepo.FindFavourite(userID, b.ID)
+			isFav = err == nil && fav != nil
+		}
+		bannerBooks = append(bannerBooks, map[string]interface{}{
+			"id":          b.ID,
+			"title":       firstLang(b.Title),
+			"author":      firstLang(b.Author),
+			"coverUrl":    b.CoverUrl,
+			"desc":        b.Desc,
+			"isFavourite": isFav,
+		})
+	}
+
 	httputil.RespondJSON(w, 200, map[string]interface{}{
-		"banners":    banners,
+		"banners":    bannerBooks,
 		"categories": cats,
-		"books":      u.NewPageResult(books, total, pageIndex, pageSize),
 	})
+}
+
+func firstLang(val string) string {
+	if val == "" {
+		return ""
+	}
+	idx := strings.Index(val, ",,")
+	if idx == -1 {
+		return val
+	}
+	return val[:idx]
 }
 
 // @Summary      首页栏目

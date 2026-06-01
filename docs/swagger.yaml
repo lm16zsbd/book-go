@@ -313,18 +313,7 @@ paths:
       - Book
   /v1/client/home:
     get:
-      description: 获取首页 Banner、分类和书籍列表
-      parameters:
-      - default: 1
-        description: 页码
-        in: query
-        name: pageIndex
-        type: integer
-      - default: 10
-        description: 每页数量
-        in: query
-        name: pageSize
-        type: integer
+      description: 获取首页 Banner 和分类
       produces:
       - application/json
       responses:

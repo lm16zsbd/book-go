@@ -436,7 +436,7 @@ const docTemplate = `{
         },
         "/v1/client/home": {
             "get": {
-                "description": "获取首页 Banner、分类和书籍列表",
+                "description": "获取首页 Banner 和分类",
                 "produces": [
                     "application/json"
                 ],
@@ -444,22 +444,6 @@ const docTemplate = `{
                     "Home"
                 ],
                 "summary": "首页数据",
-                "parameters": [
-                    {
-                        "type": "integer",
-                        "default": 1,
-                        "description": "页码",
-                        "name": "pageIndex",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "default": 10,
-                        "description": "每页数量",
-                        "name": "pageSize",
-                        "in": "query"
-                    }
-                ],
                 "responses": {
                     "200": {
                         "description": "OK",

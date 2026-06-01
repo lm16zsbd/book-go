@@ -1,6 +1,6 @@
 workflow:
   rules:
-    - if: $CI_COMMIT_BRANCH == "dev" || || $CI_COMMIT_BRANCH == "feat-go"
+    - if: $CI_COMMIT_BRANCH == "dev" || $CI_COMMIT_BRANCH == "feat-go"
 
 stages:
   - build

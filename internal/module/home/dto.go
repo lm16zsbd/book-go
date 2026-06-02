@@ -29,3 +29,9 @@ type HomepageSectionResponse struct {
 	PageIndex int         `json:"pageIndex"`
 	PageSize  int         `json:"pageSize"`
 }
+
+type HomepageSectionQuery struct {
+	Title     string `query:"title"`
+	PageIndex int    `query:"pageIndex,1"`
+	PageSize  int    `query:"pageSize,12"`
+}

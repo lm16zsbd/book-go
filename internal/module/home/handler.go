@@ -5,6 +5,7 @@ import (
 
 	"serica-go/internal/data"
 	u "serica-go/internal/module/user"
+	"serica-go/internal/pkg/binder"
 	"serica-go/internal/pkg/httputil"
 	"serica-go/internal/utl"
 )
@@ -70,18 +71,17 @@ func (h *Handler) Homepage(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) HomepageSection(w http.ResponseWriter, r *http.Request) {
-	title := r.URL.Query().Get("title")
-	pageIndex := u.QueryInt(r, "pageIndex", 1)
-	pageSize := u.QueryInt(r, "pageSize", 12)
+	var q HomepageSectionQuery
+	binder.BindQuery(r, &q)
 
-	offset := (pageIndex - 1) * pageSize
-	books, total, _ := h.bookRepo.Paginate(data.BookFilter{Order: "DESC"}, offset, pageSize)
+	offset := (q.PageIndex - 1) * q.PageSize
+	books, total, _ := h.bookRepo.Paginate(data.BookFilter{Order: "DESC"}, offset, q.PageSize)
 
 	httputil.RespondJSON(w, 200, HomepageSectionResponse{
-		Title:     title,
+		Title:     q.Title,
 		Items:     books,
 		Total:     total,
-		PageIndex: pageIndex,
-		PageSize:  pageSize,
+		PageIndex: q.PageIndex,
+		PageSize:  q.PageSize,
 	})
 }

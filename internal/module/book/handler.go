@@ -6,12 +6,12 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"strings"
 	"time"
 
 	"serica-go/internal/conf"
 	"serica-go/internal/data"
 	u "serica-go/internal/module/user"
+	"serica-go/internal/pkg/binder"
 	"serica-go/internal/pkg/dto"
 	"serica-go/internal/pkg/exception"
 	"serica-go/internal/pkg/httputil"
@@ -41,32 +41,16 @@ func NewHandler(bookRepo *data.BookRepo, userRepo *data.UserRepo, redis *data.Re
 // @Success      200  {object}  map[string]interface{}
 // @Router       /v1/client/books [get]
 func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
-	pageIndex := u.QueryInt(r, "pageIndex", 1)
-	pageSize := u.QueryInt(r, "pageSize", 20)
-	keyword := r.URL.Query().Get("keyword")
-	desc := r.URL.Query().Get("desc") != "false"
-	order := r.URL.Query().Get("order")
-	category := r.URL.Query().Get("category")
-	fileType := r.URL.Query().Get("fileType")
-	publishYear := r.URL.Query().Get("publishYear")
-	language := r.URL.Query().Get("language")
+	var q BookListQuery
+	binder.BindQuery(r, &q)
 
-	offset := (pageIndex - 1) * pageSize
-	books, total, err := h.bookRepo.Paginate(data.BookFilter{
-		Keyword:      keyword,
-		Category:     category,
-		FileTypes:    parseCommaSep(fileType),
-		PublishYears: parseCommaSep(publishYear),
-		Languages:    parseCommaSep(language),
-		Order:        order,
-		Desc:         desc,
-	}, offset, pageSize)
+	books, total, err := h.bookRepo.Paginate(q.ToFilter(), q.Offset(), q.PageSize)
 	if err != nil {
 		exception.InternalServerError.Write(w, err.Error())
 		return
 	}
 
-	httputil.RespondJSON(w, 200, dto.NewPageResult(books, total, pageIndex, pageSize))
+	httputil.RespondJSON(w, 200, dto.NewPageResult(books, total, q.PageIndex, q.PageSize))
 }
 
 // @Summary      获取书籍详情
@@ -163,46 +147,16 @@ func (h *Handler) getWrapKey(ctx context.Context, bookID int64, aesKey string) s
 // @Success      200  {object}  map[string]interface{}
 // @Router       /v1/client/search [get]
 func (h *Handler) Search(w http.ResponseWriter, r *http.Request) {
-	pageIndex := u.QueryInt(r, "pageIndex", 1)
-	pageSize := u.QueryInt(r, "pageSize", 20)
-	keyword := r.URL.Query().Get("keyword")
-	category := r.URL.Query().Get("category")
-	fileType := r.URL.Query().Get("fileType")
-	publishYear := r.URL.Query().Get("publishYear")
-	desc := !(r.URL.Query().Get("desc") == "false")
+	var q BookListQuery
+	binder.BindQuery(r, &q)
 
-	offset := (pageIndex - 1) * pageSize
-	books, total, err := h.bookRepo.Paginate(data.BookFilter{
-		Keyword:      keyword,
-		Category:     category,
-		FileTypes:    parseCommaSep(fileType),
-		PublishYears: parseCommaSep(publishYear),
-		Desc:         desc,
-	}, offset, pageSize)
+	books, total, err := h.bookRepo.Paginate(q.ToFilter(), q.Offset(), q.PageSize)
 	if err != nil {
 		exception.InternalServerError.Write(w, err.Error())
 		return
 	}
 
-	httputil.RespondJSON(w, 200, dto.NewPageResult(books, total, pageIndex, pageSize))
-}
-
-func parseCommaSep(s string) []string {
-	if s == "" {
-		return nil
-	}
-	parts := strings.Split(s, ",")
-	result := make([]string, 0, len(parts))
-	for _, p := range parts {
-		p = strings.TrimSpace(p)
-		if p != "" {
-			result = append(result, p)
-		}
-	}
-	if len(result) == 0 {
-		return nil
-	}
-	return result
+	httputil.RespondJSON(w, 200, dto.NewPageResult(books, total, q.PageIndex, q.PageSize))
 }
 
 // @Summary      获取分类列表
@@ -234,22 +188,15 @@ func (h *Handler) CategoriesAll(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) CategoriesPaginated(w http.ResponseWriter, r *http.Request) {
-	keyword := r.URL.Query().Get("keyword")
-	pageIndex := u.QueryInt(r, "page", 1)
-	pageSize := u.QueryInt(r, "limit", 20)
-	offset := (pageIndex - 1) * pageSize
+	var q CategoriesPaginatedQuery
+	binder.BindQuery(r, &q)
 
-	cats, total, err := h.bookRepo.FindCategoriesPaginated(keyword, offset, pageSize)
+	cats, total, err := h.bookRepo.FindCategoriesPaginated(q.Keyword, q.Offset(), q.PageSize)
 	if err != nil {
-		httputil.RespondJSON(w, 200, map[string]interface{}{"items": []interface{}{}, "total": 0, "page": pageIndex, "limit": pageSize})
+		httputil.RespondJSON(w, 200, dto.NewPageResult([]data.Category{}, 0, q.PageIndex, q.PageSize))
 		return
 	}
-	httputil.RespondJSON(w, 200, map[string]interface{}{
-		"items": cats,
-		"total": total,
-		"page":  pageIndex,
-		"limit": pageSize,
-	})
+	httputil.RespondJSON(w, 200, dto.NewPageResult(cats, total, q.PageIndex, q.PageSize))
 }
 
 // @Summary      获取单个分类
@@ -278,16 +225,15 @@ func (h *Handler) CategoriesGetByID(w http.ResponseWriter, r *http.Request) {
 // @Router       /v1/client/categories/{id}/books [get]
 func (h *Handler) CategoryBooks(w http.ResponseWriter, r *http.Request) {
 	id := u.PathInt(r, "id")
-	pageIndex := u.QueryInt(r, "page", 1)
-	pageSize := u.QueryInt(r, "limit", 20)
-	offset := (pageIndex - 1) * pageSize
+	var q PageQuery
+	binder.BindQuery(r, &q)
 
-	books, total, err := h.bookRepo.FindBooksByCategory(id, offset, pageSize)
+	books, total, err := h.bookRepo.FindBooksByCategory(id, q.Offset(), q.PageSize)
 	if err != nil {
-		httputil.RespondJSON(w, 200, dto.NewPageResult([]data.Book{}, 0, pageIndex, pageSize))
+		httputil.RespondJSON(w, 200, dto.NewPageResult([]data.Book{}, 0, q.PageIndex, q.PageSize))
 		return
 	}
-	httputil.RespondJSON(w, 200, dto.NewPageResult(books, total, pageIndex, pageSize))
+	httputil.RespondJSON(w, 200, dto.NewPageResult(books, total, q.PageIndex, q.PageSize))
 }
 
 // @Summary      获取作者列表
@@ -299,20 +245,19 @@ func (h *Handler) CategoryBooks(w http.ResponseWriter, r *http.Request) {
 // @Success      200   {object}  map[string]interface{}
 // @Router       /v1/client/authors [get]
 func (h *Handler) Authors(w http.ResponseWriter, r *http.Request) {
-	name := r.URL.Query().Get("name")
-	pageIndex := u.QueryInt(r, "page", 1)
-	pageSize := u.QueryInt(r, "limit", 20)
+	var q AuthorsQuery
+	binder.BindQuery(r, &q)
 
 	names, err := h.bookRepo.FindDistinctAuthors()
 	if err != nil {
-		httputil.RespondJSON(w, 200, map[string]interface{}{"items": []interface{}{}, "total": 0, "page": 1, "limit": 20})
+		httputil.RespondJSON(w, 200, dto.NewPageResult([]AuthorItem{}, 0, q.PageIndex, q.PageSize))
 		return
 	}
 
-	if name != "" {
+	if q.Name != "" {
 		filtered := make([]string, 0)
 		for _, n := range names {
-			if len(n) >= len(name) && n[:len(name)] == name {
+			if len(n) >= len(q.Name) && n[:len(q.Name)] == q.Name {
 				filtered = append(filtered, n)
 			}
 		}
@@ -320,8 +265,8 @@ func (h *Handler) Authors(w http.ResponseWriter, r *http.Request) {
 	}
 
 	total := int64(len(names))
-	offset := (pageIndex - 1) * pageSize
-	end := offset + pageSize
+	offset := q.Offset()
+	end := offset + q.PageSize
 	if end > len(names) {
 		end = len(names)
 	}
@@ -337,12 +282,7 @@ func (h *Handler) Authors(w http.ResponseWriter, r *http.Request) {
 		items[i] = AuthorItem{Name: n, Count: count}
 	}
 
-	httputil.RespondJSON(w, 200, map[string]interface{}{
-		"items": items,
-		"total": total,
-		"page":  pageIndex,
-		"limit": pageSize,
-	})
+	httputil.RespondJSON(w, 200, dto.NewPageResult(items, total, q.PageIndex, q.PageSize))
 }
 
 // @Summary      获取作者下书籍
@@ -355,16 +295,15 @@ func (h *Handler) Authors(w http.ResponseWriter, r *http.Request) {
 // @Router       /v1/client/authors/{name}/books [get]
 func (h *Handler) AuthorBooks(w http.ResponseWriter, r *http.Request) {
 	name := r.PathValue("name")
-	pageIndex := u.QueryInt(r, "page", 1)
-	pageSize := u.QueryInt(r, "limit", 20)
-	offset := (pageIndex - 1) * pageSize
+	var q PageQuery
+	binder.BindQuery(r, &q)
 
-	books, total, err := h.bookRepo.FindBooksByAuthor(name, offset, pageSize)
+	books, total, err := h.bookRepo.FindBooksByAuthor(name, q.Offset(), q.PageSize)
 	if err != nil {
-		httputil.RespondJSON(w, 200, dto.NewPageResult([]data.Book{}, 0, pageIndex, pageSize))
+		httputil.RespondJSON(w, 200, dto.NewPageResult([]data.Book{}, 0, q.PageIndex, q.PageSize))
 		return
 	}
-	httputil.RespondJSON(w, 200, dto.NewPageResult(books, total, pageIndex, pageSize))
+	httputil.RespondJSON(w, 200, dto.NewPageResult(books, total, q.PageIndex, q.PageSize))
 }
 
 // @Summary      获取出版社列表
@@ -376,20 +315,19 @@ func (h *Handler) AuthorBooks(w http.ResponseWriter, r *http.Request) {
 // @Success      200   {object}  map[string]interface{}
 // @Router       /v1/client/publishers [get]
 func (h *Handler) Publishers(w http.ResponseWriter, r *http.Request) {
-	name := r.URL.Query().Get("name")
-	pageIndex := u.QueryInt(r, "page", 1)
-	pageSize := u.QueryInt(r, "limit", 20)
+	var q AuthorsQuery
+	binder.BindQuery(r, &q)
 
 	names, err := h.bookRepo.FindDistinctPublishers()
 	if err != nil {
-		httputil.RespondJSON(w, 200, map[string]interface{}{"items": []interface{}{}, "total": 0, "page": 1, "limit": 20})
+		httputil.RespondJSON(w, 200, dto.NewPageResult([]PublisherItem{}, 0, q.PageIndex, q.PageSize))
 		return
 	}
 
-	if name != "" {
+	if q.Name != "" {
 		filtered := make([]string, 0)
 		for _, n := range names {
-			if len(n) >= len(name) && n[:len(name)] == name {
+			if len(n) >= len(q.Name) && n[:len(q.Name)] == q.Name {
 				filtered = append(filtered, n)
 			}
 		}
@@ -397,8 +335,8 @@ func (h *Handler) Publishers(w http.ResponseWriter, r *http.Request) {
 	}
 
 	total := int64(len(names))
-	offset := (pageIndex - 1) * pageSize
-	end := offset + pageSize
+	offset := q.Offset()
+	end := offset + q.PageSize
 	if end > len(names) {
 		end = len(names)
 	}
@@ -414,12 +352,7 @@ func (h *Handler) Publishers(w http.ResponseWriter, r *http.Request) {
 		items[i] = PublisherItem{Name: n, Count: count}
 	}
 
-	httputil.RespondJSON(w, 200, map[string]interface{}{
-		"items": items,
-		"total": total,
-		"page":  pageIndex,
-		"limit": pageSize,
-	})
+	httputil.RespondJSON(w, 200, dto.NewPageResult(items, total, q.PageIndex, q.PageSize))
 }
 
 // @Summary      获取出版社下书籍
@@ -432,16 +365,16 @@ func (h *Handler) Publishers(w http.ResponseWriter, r *http.Request) {
 // @Router       /v1/client/publishers/{name}/books [get]
 func (h *Handler) PublisherBooks(w http.ResponseWriter, r *http.Request) {
 	name := r.PathValue("name")
-	pageIndex := u.QueryInt(r, "page", 1)
-	pageSize := u.QueryInt(r, "limit", 20)
-	offset := (pageIndex - 1) * pageSize
+	var q PageQuery
+	binder.BindQuery(r, &q)
 
-	books, total, err := h.bookRepo.FindBooksByPublisher(name, offset, pageSize)
+	books, total, err := h.bookRepo.FindBooksByPublisher(name, q.Offset(), q.PageSize)
 	if err != nil {
-		httputil.RespondJSON(w, 200, dto.NewPageResult([]data.Book{}, 0, pageIndex, pageSize))
+		httputil.RespondJSON(w, 200, dto.NewPageResult([]data.Book{}, 0, q.PageIndex, q.PageSize))
 		return
 	}
-	httputil.RespondJSON(w, 200, dto.NewPageResult(books, total, pageIndex, pageSize))
+
+	httputil.RespondJSON(w, 200, dto.NewPageResult(books, total, q.PageIndex, q.PageSize))
 }
 
 // @Summary      获取筛选选项
@@ -524,8 +457,9 @@ func (h *Handler) ReportReadingPos(w http.ResponseWriter, r *http.Request) {
 // @Router       /v1/client/book-notes [get]
 func (h *Handler) BookNotesList(w http.ResponseWriter, r *http.Request) {
 	userID := u.GetUserID(r)
-	bookID := int64(u.QueryInt(r, "bookId", 0))
-	notes, _ := h.userRepo.FindBookNotes(userID, bookID)
+	var q BookIDQuery
+	binder.BindQuery(r, &q)
+	notes, _ := h.userRepo.FindBookNotes(userID, q.BookID)
 	httputil.RespondJSON(w, 200, notes)
 }
 

@@ -2,7 +2,10 @@ package book
 
 import (
 	"encoding/json"
+	"strings"
 	"time"
+
+	"serica-go/internal/data"
 )
 
 type BookDetail struct {
@@ -28,6 +31,80 @@ func NewBookDetail(book *BookDetail, publishDate *time.Time) *BookDetail {
 		book.PublishedAt = publishDate.Format(time.RFC3339)
 	}
 	return book
+}
+
+type BookListQuery struct {
+	Keyword     string `query:"keyword"`
+	PageIndex   int    `query:"pageIndex,1"`
+	PageSize    int    `query:"pageSize,20"`
+	Category    string `query:"category"`
+	FileType    string `query:"fileType"`
+	PublishYear string `query:"publishYear"`
+	Language    string `query:"language"`
+	Order       string `query:"order"`
+	Desc        bool   `query:"desc,true"`
+}
+
+func (q BookListQuery) Offset() int {
+	return (q.PageIndex - 1) * q.PageSize
+}
+
+func parseCommaSep(s string) []string {
+	if s == "" {
+		return nil
+	}
+	var result []string
+	for _, p := range strings.Split(s, ",") {
+		p = strings.TrimSpace(p)
+		if p != "" {
+			result = append(result, p)
+		}
+	}
+	if len(result) == 0 {
+		return nil
+	}
+	return result
+}
+
+func (q BookListQuery) ToFilter() data.BookFilter {
+	return data.BookFilter{
+		Keyword:      q.Keyword,
+		Category:     q.Category,
+		FileTypes:    parseCommaSep(q.FileType),
+		PublishYears: parseCommaSep(q.PublishYear),
+		Languages:    parseCommaSep(q.Language),
+		Order:        q.Order,
+		Desc:         q.Desc,
+	}
+}
+
+type PageQuery struct {
+	PageIndex int `query:"page,1"`
+	PageSize  int `query:"limit,20"`
+}
+
+func (q PageQuery) Offset() int {
+	return (q.PageIndex - 1) * q.PageSize
+}
+
+type AuthorsQuery struct {
+	Name      string `query:"name"`
+	PageIndex int    `query:"page,1"`
+	PageSize  int    `query:"limit,20"`
+}
+
+func (q AuthorsQuery) Offset() int {
+	return (q.PageIndex - 1) * q.PageSize
+}
+
+type CategoriesPaginatedQuery struct {
+	Keyword   string `query:"keyword"`
+	PageIndex int    `query:"page,1"`
+	PageSize  int    `query:"limit,20"`
+}
+
+func (q CategoriesPaginatedQuery) Offset() int {
+	return (q.PageIndex - 1) * q.PageSize
 }
 
 type SelectionResponse struct {
@@ -62,4 +139,12 @@ type AuthorItem struct {
 type PublisherItem struct {
 	Name  string `json:"name"`
 	Count int64  `json:"count"`
+}
+
+type BookIDQuery struct {
+	BookID int64 `query:"bookId,0"`
+}
+
+type ReadingPosQuery struct {
+	BookID int64 `query:"bookId,0"`
 }

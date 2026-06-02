@@ -5,7 +5,6 @@ import (
 
 	"serica-go/internal/data"
 	u "serica-go/internal/module/user"
-	"serica-go/internal/pkg/httputil"
 )
 
 type Handler struct {
@@ -22,16 +21,16 @@ func NewHandler(searchRepo *data.SearchHistoryRepo) *Handler {
 // @Success      200  {array}   map[string]interface{}
 // @Security     BearerAuth
 // @Router       /v1/client/search/history [get]
-func (h *Handler) GetHistory(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) GetHistory(w http.ResponseWriter, r *http.Request) (any, error) {
 	userID := u.GetUserID(r)
 	histories, _ := h.searchRepo.FindByUser(userID, 10)
-	httputil.RespondJSON(w, 200, histories)
+	return histories, nil
 }
 
-func (h *Handler) ClearHistory(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) ClearHistory(w http.ResponseWriter, r *http.Request) (any, error) {
 	userID := u.GetUserID(r)
 	h.searchRepo.DeleteAll(userID)
-	httputil.RespondJSON(w, 200, map[string]bool{"ok": true})
+	return map[string]bool{"ok": true}, nil
 }
 
 // @Summary      获取热门搜索
@@ -39,22 +38,22 @@ func (h *Handler) ClearHistory(w http.ResponseWriter, r *http.Request) {
 // @Produce      json
 // @Success      200  {array}   map[string]interface{}
 // @Router       /v1/client/search/hot [get]
-func (h *Handler) GetHot(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) GetHot(w http.ResponseWriter, r *http.Request) (any, error) {
 	keywords, _ := h.searchRepo.FindHotKeywords(10)
-	httputil.RespondJSON(w, 200, keywords)
+	return keywords, nil
 }
 
-func (h *Handler) GetHotWords(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) GetHotWords(w http.ResponseWriter, r *http.Request) (any, error) {
 	top := u.QueryInt(r, "top", 10)
 	keywords, _ := h.searchRepo.FindHotKeywords(top)
-	httputil.RespondJSON(w, 200, map[string]interface{}{
+	return map[string]interface{}{
 		"items": keywords,
 		"total": len(keywords),
-	})
+	}, nil
 }
 
-func (h *Handler) GetRecommendWords(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) GetRecommendWords(w http.ResponseWriter, r *http.Request) (any, error) {
 	top := u.QueryInt(r, "top", 10)
 	keywords, _ := h.searchRepo.FindHotKeywords(top)
-	httputil.RespondJSON(w, 200, keywords)
+	return keywords, nil
 }

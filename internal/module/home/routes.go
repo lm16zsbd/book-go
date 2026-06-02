@@ -1,6 +1,10 @@
 package home
 
-import "github.com/go-chi/chi/v5"
+import (
+	"github.com/go-chi/chi/v5"
+
+	"serica-go/internal/pkg/httputil"
+)
 
 const BasePath = "/v1/client"
 
@@ -13,10 +17,10 @@ func NewRoutes(h *Handler) *Routes {
 }
 
 func (r *Routes) Register(router chi.Router) {
-	router.Get("/home", r.Handler.Home)
+	router.Get("/home", httputil.Wrap(r.Handler.Home))
 
 	router.Route("/homepage", func(sub chi.Router) {
-		sub.Get("/", r.Handler.Homepage)
-		sub.Get("/section", r.Handler.HomepageSection)
+		sub.Get("/", httputil.Wrap(r.Handler.Homepage))
+		sub.Get("/section", httputil.Wrap(r.Handler.HomepageSection))
 	})
 }

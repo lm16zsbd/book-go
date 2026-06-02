@@ -8,7 +8,6 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -34,17 +33,16 @@ type TransInput struct {
 // @Success      200  {string} string
 // @Security     BearerAuth
 // @Router       /v1/client/trans [post]
-func (h *Handler) Trans(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) Trans(w http.ResponseWriter, r *http.Request) (any, error) {
 	userID := u.GetUserID(r)
 
 	var input TransInput
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
 		httputil.RespondJSON(w, 400, map[string]string{"error": "invalid body"})
-		return
+		return nil, nil
 	}
 	if input.Data == "" {
-		httputil.RespondJSON(w, 200, "")
-		return
+		return "", nil
 	}
 
 	_ = userID
@@ -85,7 +83,7 @@ func (h *Handler) Trans(w http.ResponseWriter, r *http.Request) {
 	apiKey := h.getOpenAIKey()
 	if apiKey == "" {
 		httputil.RespondJSON(w, 500, map[string]string{"error": "OPENAI_API_KEY not configured"})
-		return
+		return nil, nil
 	}
 
 	req, _ := http.NewRequestWithContext(r.Context(), "POST", "https://api.openai.com/v1/responses", bytes.NewReader(bodyBytes))
@@ -96,7 +94,7 @@ func (h *Handler) Trans(w http.ResponseWriter, r *http.Request) {
 	resp, err := client.Do(req)
 	if err != nil {
 		httputil.RespondJSON(w, 502, map[string]string{"error": "Translation service error"})
-		return
+		return nil, nil
 	}
 	defer resp.Body.Close()
 
@@ -104,7 +102,7 @@ func (h *Handler) Trans(w http.ResponseWriter, r *http.Request) {
 
 	if resp.StatusCode >= 400 {
 		httputil.RespondJSON(w, resp.StatusCode, map[string]string{"error": "Translation service error"})
-		return
+		return nil, nil
 	}
 
 	var result map[string]interface{}
@@ -118,13 +116,12 @@ func (h *Handler) Trans(w http.ResponseWriter, r *http.Request) {
 			cMap, _ := c.(map[string]interface{})
 			if cMap["type"] == "output_text" {
 				text, _ := cMap["text"].(string)
-				httputil.RespondJSON(w, 200, text)
-				return
+				return text, nil
 			}
 		}
 	}
 
-	httputil.RespondJSON(w, 200, "")
+	return "", nil
 }
 
 func (h *Handler) getOpenAIKey() string {
@@ -150,106 +147,68 @@ type TTSInput struct {
 // @Param        body body TTSInput true "TTS参数"
 // @Success      200  {file}   audio/mpeg
 // @Router       /v1/client/text-to-speech [post]
-func (h *Handler) TextToSpeech(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) TextToSpeech(w http.ResponseWriter, r *http.Request) (any, error) {
 	var input TTSInput
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
 		httputil.RespondJSON(w, 400, map[string]string{"error": "invalid body"})
-		return
+		return nil, nil
 	}
 
 	if input.Text == "" {
 		httputil.RespondJSON(w, 400, map[string]string{"error": "text is required"})
-		return
+		return nil, nil
 	}
-
 	if input.LanguageCode == "" {
-		input.LanguageCode = "cmn-CN"
-	}
-	if input.SSMLGender == "" {
-		input.SSMLGender = "FEMALE"
+		input.LanguageCode = "yue-HK"
 	}
 
-	voiceMap := map[string]string{
-		"cmn-CN": "Zhiyu",
-		"yue-HK": "Hiujin",
-		"en-GB":  "Emma",
-		"en-US":  "Joanna",
-	}
-	if input.LanguageCode == "en-US" && input.SSMLGender == "MALE" {
-		voiceMap["en-US"] = "Matthew"
-	}
-
-	voiceID := voiceMap[input.LanguageCode]
-	if voiceID == "" {
-		voiceID = "Zhiyu"
-	}
-
-	pollyLang := input.LanguageCode
-	if pollyLang == "yue-HK" {
-		pollyLang = "yue-CN"
-	}
-
-	ssml := fmt.Sprintf(`<speak>%s</speak>`, escapeXML(input.Text))
-
-	region := os.Getenv("AWS_REGION")
-	if region == "" {
-		region = "us-east-1"
-	}
-	accessKey := os.Getenv("AWS_ACCESS_KEY_ID")
-	secretKey := os.Getenv("AWS_SECRET_ACCESS_KEY")
+	voiceID := "Hiujin"
+	engine := pollytypes.EngineNeural
 
 	cfg, err := config.LoadDefaultConfig(context.Background(),
-		config.WithRegion(region),
-		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(accessKey, secretKey, "")),
+		config.WithRegion(h.cfg.AWS.Region),
+		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(
+			h.cfg.AWS.AccessKeyID,
+			h.cfg.AWS.SecretAccessKey,
+			"",
+		)),
 	)
 	if err != nil {
-		httputil.RespondJSON(w, 500, map[string]string{"error": "failed to configure AWS: " + err.Error()})
-		return
+		httputil.RespondJSON(w, 500, map[string]string{"error": "TTS service error"})
+		return nil, nil
 	}
 
 	pollyClient := polly.NewFromConfig(cfg)
-
-	output, err := pollyClient.SynthesizeSpeech(context.Background(), &polly.SynthesizeSpeechInput{
+	speechInput := &polly.SynthesizeSpeechInput{
+		Text:         aws.String(input.Text),
 		OutputFormat: pollytypes.OutputFormatMp3,
-		Text:         aws.String(ssml),
-		TextType:     pollytypes.TextTypeSsml,
 		VoiceId:      pollytypes.VoiceId(voiceID),
-		Engine:       pollytypes.EngineNeural,
-		LanguageCode: pollytypes.LanguageCode(pollyLang),
-	})
+		Engine:       engine,
+	}
+
+	if input.LanguageCode != "" {
+		langCode := pollytypes.LanguageCode(input.LanguageCode)
+		speechInput.LanguageCode = langCode
+		if voiceID == "Hiujin" && input.LanguageCode == "cmn-CN" {
+			speechInput.VoiceId = pollytypes.VoiceIdZhiyu
+		}
+	}
+
+	output, err := pollyClient.SynthesizeSpeech(context.Background(), speechInput)
 	if err != nil {
-		httputil.RespondJSON(w, 500, map[string]string{"error": "TTS generation failed: " + err.Error()})
-		return
+		httputil.RespondJSON(w, 500, map[string]string{"error": "TTS synthesis failed"})
+		return nil, nil
 	}
 
 	audioData, err := io.ReadAll(output.AudioStream)
 	if err != nil {
-		httputil.RespondJSON(w, 500, map[string]string{"error": "failed to read audio stream: " + err.Error()})
-		return
+		httputil.RespondJSON(w, 500, map[string]string{"error": "failed to read audio data"})
+		return nil, nil
 	}
 
 	w.Header().Set("Content-Type", "audio/mpeg")
-	w.Header().Set("Content-Disposition", "inline; filename=\"output.mp3\"")
+	w.Header().Set("Content-Disposition", "inline; filename=speech.mp3")
+	w.WriteHeader(http.StatusOK)
 	w.Write(audioData)
-}
-
-func escapeXML(s string) string {
-	var b strings.Builder
-	for _, r := range s {
-		switch r {
-		case '&':
-			b.WriteString("&amp;")
-		case '<':
-			b.WriteString("&lt;")
-		case '>':
-			b.WriteString("&gt;")
-		case '"':
-			b.WriteString("&quot;")
-		case '\'':
-			b.WriteString("&apos;")
-		default:
-			b.WriteRune(r)
-		}
-	}
-	return b.String()
+	return nil, nil
 }

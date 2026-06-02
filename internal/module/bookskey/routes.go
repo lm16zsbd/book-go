@@ -1,6 +1,10 @@
 package bookskey
 
-import "github.com/go-chi/chi/v5"
+import (
+	"github.com/go-chi/chi/v5"
+
+	"serica-go/internal/pkg/httputil"
+)
 
 const BasePath = "/v1/client"
 
@@ -13,5 +17,5 @@ func NewRoutes(h *Handler) *Routes {
 }
 
 func (r *Routes) Register(router chi.Router) {
-	router.Get("/booksKey", r.Handler.GetKey)
+	router.Get("/booksKey", httputil.Wrap(r.Handler.GetKey))
 }

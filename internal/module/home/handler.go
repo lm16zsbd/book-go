@@ -6,7 +6,6 @@ import (
 	"serica-go/internal/data"
 	u "serica-go/internal/module/user"
 	"serica-go/internal/pkg/binder"
-	"serica-go/internal/pkg/httputil"
 	"serica-go/internal/utl"
 )
 
@@ -28,7 +27,7 @@ var homeBannerIds = []int64{103, 202, 183, 153, 193, 163}
 // @Produce      json
 // @Success      200  {object}  home.HomeResponse
 // @Router       /v1/client/home [get]
-func (h *Handler) Home(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) Home(w http.ResponseWriter, r *http.Request) (any, error) {
 	books, _ := h.bookRepo.FindByIDs(homeBannerIds)
 	cats, _ := h.bookRepo.ListCategories()
 
@@ -50,7 +49,7 @@ func (h *Handler) Home(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
-	httputil.RespondJSON(w, 200, HomeResponse{Banners: bannerBooks, Categories: cats})
+	return HomeResponse{Banners: bannerBooks, Categories: cats}, nil
 }
 
 // @Summary      首页栏目
@@ -58,7 +57,7 @@ func (h *Handler) Home(w http.ResponseWriter, r *http.Request) {
 // @Produce      json
 // @Success      200  {array}   home.HomepageSection
 // @Router       /v1/client/homepage [get]
-func (h *Handler) Homepage(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) Homepage(w http.ResponseWriter, r *http.Request) (any, error) {
 	recommended, recTotal, _ := h.bookRepo.Paginate(data.BookFilter{Order: "DESC"}, 0, 10)
 	newest, _, _ := h.bookRepo.Paginate(data.BookFilter{Order: "DESC"}, 0, 10)
 
@@ -67,21 +66,21 @@ func (h *Handler) Homepage(w http.ResponseWriter, r *http.Request) {
 		{Title: "最新上架", Items: newest},
 	}
 
-	httputil.RespondJSON(w, 200, sections)
+	return sections, nil
 }
 
-func (h *Handler) HomepageSection(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) HomepageSection(w http.ResponseWriter, r *http.Request) (any, error) {
 	var q HomepageSectionQuery
 	binder.BindQuery(r, &q)
 
 	offset := (q.PageIndex - 1) * q.PageSize
 	books, total, _ := h.bookRepo.Paginate(data.BookFilter{Order: "DESC"}, offset, q.PageSize)
 
-	httputil.RespondJSON(w, 200, HomepageSectionResponse{
+	return HomepageSectionResponse{
 		Title:     q.Title,
 		Items:     books,
 		Total:     total,
 		PageIndex: q.PageIndex,
 		PageSize:  q.PageSize,
-	})
+	}, nil
 }

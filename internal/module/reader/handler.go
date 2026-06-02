@@ -18,22 +18,20 @@ func NewHandler(userRepo *data.UserRepo, bookRepo *data.BookRepo) *Handler {
 	return &Handler{userRepo: userRepo, bookRepo: bookRepo}
 }
 
-func (h *Handler) GetConfig(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) GetConfig(w http.ResponseWriter, r *http.Request) (any, error) {
 	userID := u.GetUserID(r)
 	cfg, err := h.userRepo.GetReaderConfig(userID)
 	if err != nil {
-		httputil.RespondJSON(w, 200, map[string]interface{}{"theme": "light", "fontSize": 16})
-		return
+		return map[string]interface{}{"theme": "light", "fontSize": 16}, nil
 	}
-	httputil.RespondJSON(w, 200, cfg)
+	return cfg, nil
 }
 
-func (h *Handler) UpdateConfig(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) UpdateConfig(w http.ResponseWriter, r *http.Request) (any, error) {
 	userID := u.GetUserID(r)
 	var input ReaderConfigReq
 	if err := httputil.DecodeAndValidate(r, &input); err != nil {
-		exception.InvalidBody.Write(w)
-		return
+		return nil, exception.InvalidBody
 	}
 	cfg := &data.ReaderConfig{UserID: userID}
 	if input.Theme != nil {
@@ -43,25 +41,23 @@ func (h *Handler) UpdateConfig(w http.ResponseWriter, r *http.Request) {
 		cfg.FontSize = *input.FontSize
 	}
 	if err := h.userRepo.SaveReaderConfig(cfg); err != nil {
-		exception.InternalServerError.Write(w, err.Error())
-		return
+		return nil, exception.InternalServerError.WithMsg(err.Error())
 	}
-	httputil.RespondJSON(w, 200, cfg)
+	return cfg, nil
 }
 
-func (h *Handler) GetBookmarks(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) GetBookmarks(w http.ResponseWriter, r *http.Request) (any, error) {
 	userID := u.GetUserID(r)
 	bookID := u.PathInt(r, "id")
 	bookmarks, _ := h.userRepo.FindBookmarks(userID, bookID)
-	httputil.RespondJSON(w, 200, bookmarks)
+	return bookmarks, nil
 }
 
-func (h *Handler) CreateBookmark(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) CreateBookmark(w http.ResponseWriter, r *http.Request) (any, error) {
 	userID := u.GetUserID(r)
 	var input CreateBookmarkReq
 	if err := httputil.DecodeAndValidate(r, &input); err != nil {
-		exception.InvalidBody.Write(w)
-		return
+		return nil, exception.InvalidBody
 	}
 	bm := &data.Bookmark{
 		UserID:   userID,
@@ -70,25 +66,23 @@ func (h *Handler) CreateBookmark(w http.ResponseWriter, r *http.Request) {
 		Position: input.Position,
 	}
 	if err := h.userRepo.CreateBookmark(bm); err != nil {
-		exception.InternalServerError.Write(w, err.Error())
-		return
+		return nil, exception.InternalServerError.WithMsg(err.Error())
 	}
-	httputil.RespondJSON(w, 200, bm)
+	return bm, nil
 }
 
-func (h *Handler) GetAnnotations(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) GetAnnotations(w http.ResponseWriter, r *http.Request) (any, error) {
 	userID := u.GetUserID(r)
 	bookID := u.PathInt(r, "id")
 	annotations, _ := h.userRepo.FindAnnotations(userID, bookID)
-	httputil.RespondJSON(w, 200, annotations)
+	return annotations, nil
 }
 
-func (h *Handler) CreateAnnotation(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) CreateAnnotation(w http.ResponseWriter, r *http.Request) (any, error) {
 	userID := u.GetUserID(r)
 	var input CreateAnnotationReq
 	if err := httputil.DecodeAndValidate(r, &input); err != nil {
-		exception.InvalidBody.Write(w)
-		return
+		return nil, exception.InvalidBody
 	}
 	a := &data.Annotation{
 		UserID:   userID,
@@ -98,18 +92,16 @@ func (h *Handler) CreateAnnotation(w http.ResponseWriter, r *http.Request) {
 		Position: input.Position,
 	}
 	if err := h.userRepo.CreateAnnotation(a); err != nil {
-		exception.InternalServerError.Write(w, err.Error())
-		return
+		return nil, exception.InternalServerError.WithMsg(err.Error())
 	}
-	httputil.RespondJSON(w, 200, a)
+	return a, nil
 }
 
-func (h *Handler) UpdateAnnotation(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) UpdateAnnotation(w http.ResponseWriter, r *http.Request) (any, error) {
 	id := u.PathInt(r, "annotationId")
 	var input UpdateAnnotationReq
 	if err := httputil.DecodeAndValidate(r, &input); err != nil {
-		exception.InvalidBody.Write(w)
-		return
+		return nil, exception.InvalidBody
 	}
 	updates := make(map[string]interface{})
 	if input.Note != nil {
@@ -119,14 +111,13 @@ func (h *Handler) UpdateAnnotation(w http.ResponseWriter, r *http.Request) {
 		updates["color"] = *input.Color
 	}
 	if err := h.userRepo.UpdateAnnotation(id, updates); err != nil {
-		exception.InternalServerError.Write(w, err.Error())
-		return
+		return nil, exception.InternalServerError.WithMsg(err.Error())
 	}
-	httputil.RespondJSON(w, 200, map[string]bool{"ok": true})
+	return map[string]bool{"ok": true}, nil
 }
 
-func (h *Handler) DeleteAnnotation(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) DeleteAnnotation(w http.ResponseWriter, r *http.Request) (any, error) {
 	id := u.PathInt(r, "annotationId")
 	h.userRepo.DeleteAnnotation(id)
-	httputil.RespondJSON(w, 200, map[string]bool{"ok": true})
+	return map[string]bool{"ok": true}, nil
 }

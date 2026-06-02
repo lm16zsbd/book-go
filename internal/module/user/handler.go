@@ -32,17 +32,15 @@ const sessionTTL = 7 * 24 * 60 * 60
 // @Failure      400  {object}  map[string]string
 // @Failure      401  {object}  map[string]string
 // @Router       /v1/client/login [post]
-func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) Login(w http.ResponseWriter, r *http.Request) (any, error) {
 	var input LoginReq
 	if err := httputil.DecodeAndValidate(r, &input); err != nil {
-		exception.InvalidBody.Write(w)
-		return
+		return nil, exception.InvalidBody
 	}
 
 	user, err := h.userRepo.FindByEmail(input.Email)
 	if err != nil {
-		exception.Unauthorized.Write(w, "user not found")
-		return
+		return nil, exception.Unauthorized.WithMsg("user not found")
 	}
 
 	token := rand.Token(32)
@@ -65,10 +63,10 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		}, sessionTTL)
 	}
 
-	httputil.RespondJSON(w, 200, map[string]interface{}{
+	return map[string]interface{}{
 		"token": token,
 		"user":  user,
-	})
+	}, nil
 }
 
 // @Summary      用户注册
@@ -79,11 +77,10 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 // @Param        body body LoginReq true "注册信息"
 // @Success      200  {object}  map[string]string
 // @Router       /v1/client/user/register [post]
-func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) Register(w http.ResponseWriter, r *http.Request) (any, error) {
 	var input LoginReq
 	if err := httputil.DecodeAndValidate(r, &input); err != nil {
-		exception.InvalidBody.Write(w)
-		return
+		return nil, exception.InvalidBody
 	}
 
 	user, err := h.userRepo.FindByEmail(input.Email)
@@ -112,7 +109,7 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 		}, sessionTTL)
 	}
 
-	httputil.RespondJSON(w, 200, map[string]string{"token": token})
+	return map[string]string{"token": token}, nil
 }
 
 // @Summary      获取用户信息
@@ -122,14 +119,13 @@ func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
 // @Success      200  {object}  map[string]interface{}
 // @Security     BearerAuth
 // @Router       /v1/client/user/profile [get]
-func (h *Handler) GetProfile(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) GetProfile(w http.ResponseWriter, r *http.Request) (any, error) {
 	userID := GetUserID(r)
 	user, err := h.userRepo.FindByID(userID)
 	if err != nil {
-		UserNotFound.Write(w)
-		return
+		return nil, UserNotFound
 	}
-	httputil.RespondJSON(w, 200, user)
+	return user, nil
 }
 
 // @Summary      更新用户信息
@@ -140,12 +136,11 @@ func (h *Handler) GetProfile(w http.ResponseWriter, r *http.Request) {
 // @Success      200  {object}  map[string]bool
 // @Security     BearerAuth
 // @Router       /v1/client/user/profile [patch]
-func (h *Handler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) UpdateProfile(w http.ResponseWriter, r *http.Request) (any, error) {
 	userID := GetUserID(r)
 	var input UpdateProfileReq
 	if err := httputil.DecodeAndValidate(r, &input); err != nil {
-		exception.InvalidBody.Write(w)
-		return
+		return nil, exception.InvalidBody
 	}
 
 	updates := make(map[string]interface{})
@@ -163,15 +158,13 @@ func (h *Handler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if len(updates) == 0 {
-		httputil.RespondJSON(w, 200, map[string]bool{"ok": true})
-		return
+		return map[string]bool{"ok": true}, nil
 	}
 
 	if err := h.userRepo.Update(userID, updates); err != nil {
-		exception.InternalServerError.Write(w, err.Error())
-		return
+		return nil, exception.InternalServerError.WithMsg(err.Error())
 	}
-	httputil.RespondJSON(w, 200, map[string]bool{"ok": true})
+	return map[string]bool{"ok": true}, nil
 }
 
 // @Summary      获取收藏列表
@@ -184,7 +177,7 @@ func (h *Handler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 // @Success      200  {object}  map[string]interface{}
 // @Security     BearerAuth
 // @Router       /v1/client/user/favourites [get]
-func (h *Handler) GetFavourites(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) GetFavourites(w http.ResponseWriter, r *http.Request) (any, error) {
 	userID := GetUserID(r)
 	pageIndex := QueryInt(r, "pageIndex", 1)
 	pageSize := QueryInt(r, "pageSize", 12)
@@ -193,16 +186,15 @@ func (h *Handler) GetFavourites(w http.ResponseWriter, r *http.Request) {
 	offset := (pageIndex - 1) * pageSize
 	items, total, err := h.userRepo.FindFavouritesPaginated(userID, offset, pageSize, desc)
 	if err != nil {
-		exception.InternalServerError.Write(w, err.Error())
-		return
+		return nil, exception.InternalServerError.WithMsg(err.Error())
 	}
 
-	httputil.RespondJSON(w, 200, map[string]interface{}{
+	return map[string]interface{}{
 		"items":     items,
 		"total":     total,
 		"pageIndex": pageIndex,
 		"pageSize":  pageSize,
-	})
+	}, nil
 }
 
 // @Summary      收藏/取消收藏
@@ -212,15 +204,14 @@ func (h *Handler) GetFavourites(w http.ResponseWriter, r *http.Request) {
 // @Success      200  {object}  map[string]bool
 // @Security     BearerAuth
 // @Router       /v1/client/books/{bookId}/favourite [post]
-func (h *Handler) ToggleFavourite(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) ToggleFavourite(w http.ResponseWriter, r *http.Request) (any, error) {
 	userID := GetUserID(r)
 	bookID := PathInt(r, "bookId")
 	isFavourite, err := h.userRepo.ToggleFavourite(userID, bookID)
 	if err != nil {
-		exception.InternalServerError.Write(w, err.Error())
-		return
+		return nil, exception.InternalServerError.WithMsg(err.Error())
 	}
-	httputil.RespondJSON(w, 200, map[string]bool{"isFavourite": isFavourite})
+	return map[string]bool{"isFavourite": isFavourite}, nil
 }
 
 // @Summary      批量取消收藏
@@ -231,11 +222,10 @@ func (h *Handler) ToggleFavourite(w http.ResponseWriter, r *http.Request) {
 // @Success      201  {object}  map[string]interface{}
 // @Security     BearerAuth
 // @Router       /v1/client/books/cancelFavourite [post]
-func (h *Handler) BatchCancelFavourite(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) BatchCancelFavourite(w http.ResponseWriter, r *http.Request) (any, error) {
 	userID := GetUserID(r)
 	if userID == 0 {
-		exception.Unauthorized.Write(w)
-		return
+		return nil, exception.Unauthorized
 	}
 	var input BatchCancelFavouriteReq
 	httputil.DecodeAndValidate(r, &input)
@@ -251,7 +241,7 @@ func (h *Handler) BatchCancelFavourite(w http.ResponseWriter, r *http.Request) {
 		cancelled = h.userRepo.BatchCancelFavourite(userID, *input.BookIDs)
 	}
 
-	httputil.RespondJSON(w, 201, map[string]interface{}{"cancelled": cancelled})
+	return map[string]interface{}{"cancelled": cancelled}, nil
 }
 
 // @Summary      获取书签列表
@@ -261,11 +251,11 @@ func (h *Handler) BatchCancelFavourite(w http.ResponseWriter, r *http.Request) {
 // @Success      200  {array}   map[string]interface{}
 // @Security     BearerAuth
 // @Router       /v1/client/books/{bookId}/bookmarks [get]
-func (h *Handler) GetBookmarks(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) GetBookmarks(w http.ResponseWriter, r *http.Request) (any, error) {
 	userID := GetUserID(r)
 	bookID := PathInt(r, "bookId")
 	bookmarks, _ := h.userRepo.FindBookmarks(userID, bookID)
-	httputil.RespondJSON(w, 200, bookmarks)
+	return bookmarks, nil
 }
 
 // @Summary      添加书签
@@ -277,7 +267,7 @@ func (h *Handler) GetBookmarks(w http.ResponseWriter, r *http.Request) {
 // @Success      200  {object}  map[string]interface{}
 // @Security     BearerAuth
 // @Router       /v1/client/books/{bookId}/bookmarks [post]
-func (h *Handler) CreateBookmark(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) CreateBookmark(w http.ResponseWriter, r *http.Request) (any, error) {
 	userID := GetUserID(r)
 	bookID := PathInt(r, "bookId")
 	var bm data.Bookmark
@@ -285,7 +275,7 @@ func (h *Handler) CreateBookmark(w http.ResponseWriter, r *http.Request) {
 	bm.UserID = userID
 	bm.BookID = bookID
 	h.userRepo.CreateBookmark(&bm)
-	httputil.RespondJSON(w, 200, bm)
+	return bm, nil
 }
 
 // @Summary      删除书签
@@ -295,10 +285,10 @@ func (h *Handler) CreateBookmark(w http.ResponseWriter, r *http.Request) {
 // @Success      200  {object}  map[string]bool
 // @Security     BearerAuth
 // @Router       /v1/client/bookmarks/{bookmarkId} [delete]
-func (h *Handler) DeleteBookmark(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) DeleteBookmark(w http.ResponseWriter, r *http.Request) (any, error) {
 	id := PathInt(r, "bookmarkId")
 	h.userRepo.DeleteBookmark(id)
-	httputil.RespondJSON(w, 200, map[string]bool{"ok": true})
+	return map[string]bool{"ok": true}, nil
 }
 
 // @Summary      获取批注列表
@@ -308,11 +298,11 @@ func (h *Handler) DeleteBookmark(w http.ResponseWriter, r *http.Request) {
 // @Success      200  {array}   map[string]interface{}
 // @Security     BearerAuth
 // @Router       /v1/client/books/{bookId}/annotations [get]
-func (h *Handler) GetAnnotations(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) GetAnnotations(w http.ResponseWriter, r *http.Request) (any, error) {
 	userID := GetUserID(r)
 	bookID := PathInt(r, "bookId")
 	annotations, _ := h.userRepo.FindAnnotations(userID, bookID)
-	httputil.RespondJSON(w, 200, annotations)
+	return annotations, nil
 }
 
 // @Summary      添加批注
@@ -324,7 +314,7 @@ func (h *Handler) GetAnnotations(w http.ResponseWriter, r *http.Request) {
 // @Success      200  {object}  map[string]interface{}
 // @Security     BearerAuth
 // @Router       /v1/client/books/{bookId}/annotations [post]
-func (h *Handler) CreateAnnotation(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) CreateAnnotation(w http.ResponseWriter, r *http.Request) (any, error) {
 	userID := GetUserID(r)
 	bookID := PathInt(r, "bookId")
 	var a data.Annotation
@@ -332,7 +322,7 @@ func (h *Handler) CreateAnnotation(w http.ResponseWriter, r *http.Request) {
 	a.UserID = userID
 	a.BookID = bookID
 	h.userRepo.CreateAnnotation(&a)
-	httputil.RespondJSON(w, 200, a)
+	return a, nil
 }
 
 // @Summary      获取阅读器配置
@@ -341,14 +331,13 @@ func (h *Handler) CreateAnnotation(w http.ResponseWriter, r *http.Request) {
 // @Success      200  {object}  map[string]interface{}
 // @Security     BearerAuth
 // @Router       /v1/client/reader-config [get]
-func (h *Handler) GetReaderConfig(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) GetReaderConfig(w http.ResponseWriter, r *http.Request) (any, error) {
 	userID := GetUserID(r)
 	cfg, err := h.userRepo.GetReaderConfig(userID)
 	if err != nil {
-		httputil.RespondJSON(w, 200, map[string]interface{}{"theme": "light", "fontSize": 16})
-		return
+		return map[string]interface{}{"theme": "light", "fontSize": 16}, nil
 	}
-	httputil.RespondJSON(w, 200, cfg)
+	return cfg, nil
 }
 
 // @Summary      保存阅读器配置
@@ -359,11 +348,11 @@ func (h *Handler) GetReaderConfig(w http.ResponseWriter, r *http.Request) {
 // @Success      200  {object}  map[string]interface{}
 // @Security     BearerAuth
 // @Router       /v1/client/reader-config [post]
-func (h *Handler) SaveReaderConfig(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) SaveReaderConfig(w http.ResponseWriter, r *http.Request) (any, error) {
 	userID := GetUserID(r)
 	var cfg data.ReaderConfig
 	json.NewDecoder(r.Body).Decode(&cfg)
 	cfg.UserID = userID
 	h.userRepo.SaveReaderConfig(&cfg)
-	httputil.RespondJSON(w, 200, cfg)
+	return cfg, nil
 }

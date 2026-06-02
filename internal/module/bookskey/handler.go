@@ -5,7 +5,6 @@ import (
 
 	"serica-go/internal/data"
 	u "serica-go/internal/module/user"
-	"serica-go/internal/pkg/httputil"
 )
 
 type Handler struct {
@@ -24,12 +23,11 @@ func NewHandler(bookKeyRepo *data.BookKeyRepo) *Handler {
 // @Success      200  {object}  map[string]interface{}
 // @Security     BearerAuth
 // @Router       /v1/client/booksKey [get]
-func (h *Handler) GetKey(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) GetKey(w http.ResponseWriter, r *http.Request) (any, error) {
 	bookID := u.PathInt(r, "bookId")
 	key, err := h.bookKeyRepo.FindByBookID(bookID)
 	if err != nil {
-		KeyNotFound.Write(w)
-		return
+		return nil, KeyNotFound
 	}
-	httputil.RespondJSON(w, 200, key)
+	return key, nil
 }

@@ -40,17 +40,16 @@ func NewHandler(bookRepo *data.BookRepo, userRepo *data.UserRepo, redis *data.Re
 // @Param        order     query  string  false  "排序"
 // @Success      200  {object}  map[string]interface{}
 // @Router       /v1/client/books [get]
-func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) List(w http.ResponseWriter, r *http.Request) (any, error) {
 	var q BookListQuery
 	binder.BindQuery(r, &q)
 
 	books, total, err := h.bookRepo.Paginate(q.ToFilter(), q.Offset(), q.PageSize)
 	if err != nil {
-		exception.InternalServerError.Write(w, err.Error())
-		return
+		return nil, exception.InternalServerError.WithMsg(err.Error())
 	}
 
-	httputil.RespondJSON(w, 200, dto.NewPageResult(books, total, q.PageIndex, q.PageSize))
+	return dto.NewPageResult(books, total, q.PageIndex, q.PageSize), nil
 }
 
 // @Summary      获取书籍详情
@@ -60,14 +59,13 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 // @Success      200  {object}  map[string]interface{}
 // @Failure      404  {object}  map[string]string
 // @Router       /v1/client/books/{id} [get]
-func (h *Handler) GetByID(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) GetByID(w http.ResponseWriter, r *http.Request) (any, error) {
 	bookID := u.PathInt(r, "id")
 	userID := u.GetUserID(r)
 
 	book, err := h.bookRepo.FindByID(bookID)
 	if err != nil {
-		BookNotFound.Write(w)
-		return
+		return nil, BookNotFound
 	}
 
 	result := BookDetail{
@@ -98,7 +96,7 @@ func (h *Handler) GetByID(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	httputil.RespondJSON(w, 200, result)
+	return result, nil
 }
 
 func (h *Handler) getWrapKey(ctx context.Context, bookID int64, aesKey string) string {
@@ -146,17 +144,16 @@ func (h *Handler) getWrapKey(ctx context.Context, bookID int64, aesKey string) s
 // @Param        pageSize  query  int     false  "每页数量"  default(20)
 // @Success      200  {object}  map[string]interface{}
 // @Router       /v1/client/search [get]
-func (h *Handler) Search(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) Search(w http.ResponseWriter, r *http.Request) (any, error) {
 	var q BookListQuery
 	binder.BindQuery(r, &q)
 
 	books, total, err := h.bookRepo.Paginate(q.ToFilter(), q.Offset(), q.PageSize)
 	if err != nil {
-		exception.InternalServerError.Write(w, err.Error())
-		return
+		return nil, exception.InternalServerError.WithMsg(err.Error())
 	}
 
-	httputil.RespondJSON(w, 200, dto.NewPageResult(books, total, q.PageIndex, q.PageSize))
+	return dto.NewPageResult(books, total, q.PageIndex, q.PageSize), nil
 }
 
 // @Summary      获取分类列表
@@ -164,13 +161,12 @@ func (h *Handler) Search(w http.ResponseWriter, r *http.Request) {
 // @Produce      json
 // @Success      200  {array}   data.Category
 // @Router       /v1/client/categories [get]
-func (h *Handler) Categories(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) Categories(w http.ResponseWriter, r *http.Request) (any, error) {
 	cats, err := h.bookRepo.ListCategories()
 	if err != nil {
-		httputil.RespondJSON(w, 200, []interface{}{})
-		return
+		return []interface{}{}, nil
 	}
-	httputil.RespondJSON(w, 200, cats)
+	return cats, nil
 }
 
 // @Summary      获取所有分类
@@ -178,25 +174,23 @@ func (h *Handler) Categories(w http.ResponseWriter, r *http.Request) {
 // @Produce      json
 // @Success      200  {array}   data.Category
 // @Router       /v1/client/categories/all [get]
-func (h *Handler) CategoriesAll(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) CategoriesAll(w http.ResponseWriter, r *http.Request) (any, error) {
 	cats, err := h.bookRepo.ListCategories()
 	if err != nil {
-		httputil.RespondJSON(w, 200, []interface{}{})
-		return
+		return []interface{}{}, nil
 	}
-	httputil.RespondJSON(w, 200, cats)
+	return cats, nil
 }
 
-func (h *Handler) CategoriesPaginated(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) CategoriesPaginated(w http.ResponseWriter, r *http.Request) (any, error) {
 	var q CategoriesPaginatedQuery
 	binder.BindQuery(r, &q)
 
 	cats, total, err := h.bookRepo.FindCategoriesPaginated(q.Keyword, q.Offset(), q.PageSize)
 	if err != nil {
-		httputil.RespondJSON(w, 200, dto.NewPageResult([]data.Category{}, 0, q.PageIndex, q.PageSize))
-		return
+		return dto.NewPageResult([]data.Category{}, 0, q.PageIndex, q.PageSize), nil
 	}
-	httputil.RespondJSON(w, 200, dto.NewPageResult(cats, total, q.PageIndex, q.PageSize))
+	return dto.NewPageResult(cats, total, q.PageIndex, q.PageSize), nil
 }
 
 // @Summary      获取单个分类
@@ -205,14 +199,13 @@ func (h *Handler) CategoriesPaginated(w http.ResponseWriter, r *http.Request) {
 // @Param        id path int true "分类ID"
 // @Success      200  {object}  data.Category
 // @Router       /v1/client/categories/{id} [get]
-func (h *Handler) CategoriesGetByID(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) CategoriesGetByID(w http.ResponseWriter, r *http.Request) (any, error) {
 	id := u.PathInt(r, "id")
 	cat, err := h.bookRepo.FindCategoryByID(id)
 	if err != nil {
-		CategoryNotFound.Write(w)
-		return
+		return nil, CategoryNotFound
 	}
-	httputil.RespondJSON(w, 200, cat)
+	return cat, nil
 }
 
 // @Summary      获取分类下书籍
@@ -223,17 +216,16 @@ func (h *Handler) CategoriesGetByID(w http.ResponseWriter, r *http.Request) {
 // @Param        limit query int  false "每页数量" default(20)
 // @Success      200  {object}  map[string]interface{}
 // @Router       /v1/client/categories/{id}/books [get]
-func (h *Handler) CategoryBooks(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) CategoryBooks(w http.ResponseWriter, r *http.Request) (any, error) {
 	id := u.PathInt(r, "id")
 	var q PageQuery
 	binder.BindQuery(r, &q)
 
 	books, total, err := h.bookRepo.FindBooksByCategory(id, q.Offset(), q.PageSize)
 	if err != nil {
-		httputil.RespondJSON(w, 200, dto.NewPageResult([]data.Book{}, 0, q.PageIndex, q.PageSize))
-		return
+		return dto.NewPageResult([]data.Book{}, 0, q.PageIndex, q.PageSize), nil
 	}
-	httputil.RespondJSON(w, 200, dto.NewPageResult(books, total, q.PageIndex, q.PageSize))
+	return dto.NewPageResult(books, total, q.PageIndex, q.PageSize), nil
 }
 
 // @Summary      获取作者列表
@@ -244,14 +236,13 @@ func (h *Handler) CategoryBooks(w http.ResponseWriter, r *http.Request) {
 // @Param        limit query int    false "每页数量" default(20)
 // @Success      200   {object}  map[string]interface{}
 // @Router       /v1/client/authors [get]
-func (h *Handler) Authors(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) Authors(w http.ResponseWriter, r *http.Request) (any, error) {
 	var q AuthorsQuery
 	binder.BindQuery(r, &q)
 
 	names, err := h.bookRepo.FindDistinctAuthors()
 	if err != nil {
-		httputil.RespondJSON(w, 200, dto.NewPageResult([]AuthorItem{}, 0, q.PageIndex, q.PageSize))
-		return
+		return dto.NewPageResult([]AuthorItem{}, 0, q.PageIndex, q.PageSize), nil
 	}
 
 	if q.Name != "" {
@@ -282,7 +273,7 @@ func (h *Handler) Authors(w http.ResponseWriter, r *http.Request) {
 		items[i] = AuthorItem{Name: n, Count: count}
 	}
 
-	httputil.RespondJSON(w, 200, dto.NewPageResult(items, total, q.PageIndex, q.PageSize))
+	return dto.NewPageResult(items, total, q.PageIndex, q.PageSize), nil
 }
 
 // @Summary      获取作者下书籍
@@ -293,17 +284,16 @@ func (h *Handler) Authors(w http.ResponseWriter, r *http.Request) {
 // @Param        limit query int false "每页数量" default(20)
 // @Success      200  {object}  map[string]interface{}
 // @Router       /v1/client/authors/{name}/books [get]
-func (h *Handler) AuthorBooks(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) AuthorBooks(w http.ResponseWriter, r *http.Request) (any, error) {
 	name := r.PathValue("name")
 	var q PageQuery
 	binder.BindQuery(r, &q)
 
 	books, total, err := h.bookRepo.FindBooksByAuthor(name, q.Offset(), q.PageSize)
 	if err != nil {
-		httputil.RespondJSON(w, 200, dto.NewPageResult([]data.Book{}, 0, q.PageIndex, q.PageSize))
-		return
+		return dto.NewPageResult([]data.Book{}, 0, q.PageIndex, q.PageSize), nil
 	}
-	httputil.RespondJSON(w, 200, dto.NewPageResult(books, total, q.PageIndex, q.PageSize))
+	return dto.NewPageResult(books, total, q.PageIndex, q.PageSize), nil
 }
 
 // @Summary      获取出版社列表
@@ -314,14 +304,13 @@ func (h *Handler) AuthorBooks(w http.ResponseWriter, r *http.Request) {
 // @Param        limit query int    false "每页数量" default(20)
 // @Success      200   {object}  map[string]interface{}
 // @Router       /v1/client/publishers [get]
-func (h *Handler) Publishers(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) Publishers(w http.ResponseWriter, r *http.Request) (any, error) {
 	var q AuthorsQuery
 	binder.BindQuery(r, &q)
 
 	names, err := h.bookRepo.FindDistinctPublishers()
 	if err != nil {
-		httputil.RespondJSON(w, 200, dto.NewPageResult([]PublisherItem{}, 0, q.PageIndex, q.PageSize))
-		return
+		return dto.NewPageResult([]PublisherItem{}, 0, q.PageIndex, q.PageSize), nil
 	}
 
 	if q.Name != "" {
@@ -352,7 +341,7 @@ func (h *Handler) Publishers(w http.ResponseWriter, r *http.Request) {
 		items[i] = PublisherItem{Name: n, Count: count}
 	}
 
-	httputil.RespondJSON(w, 200, dto.NewPageResult(items, total, q.PageIndex, q.PageSize))
+	return dto.NewPageResult(items, total, q.PageIndex, q.PageSize), nil
 }
 
 // @Summary      获取出版社下书籍
@@ -363,18 +352,17 @@ func (h *Handler) Publishers(w http.ResponseWriter, r *http.Request) {
 // @Param        limit query int false "每页数量" default(20)
 // @Success      200  {object}  map[string]interface{}
 // @Router       /v1/client/publishers/{name}/books [get]
-func (h *Handler) PublisherBooks(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) PublisherBooks(w http.ResponseWriter, r *http.Request) (any, error) {
 	name := r.PathValue("name")
 	var q PageQuery
 	binder.BindQuery(r, &q)
 
 	books, total, err := h.bookRepo.FindBooksByPublisher(name, q.Offset(), q.PageSize)
 	if err != nil {
-		httputil.RespondJSON(w, 200, dto.NewPageResult([]data.Book{}, 0, q.PageIndex, q.PageSize))
-		return
+		return dto.NewPageResult([]data.Book{}, 0, q.PageIndex, q.PageSize), nil
 	}
 
-	httputil.RespondJSON(w, 200, dto.NewPageResult(books, total, q.PageIndex, q.PageSize))
+	return dto.NewPageResult(books, total, q.PageIndex, q.PageSize), nil
 }
 
 // @Summary      获取筛选选项
@@ -382,13 +370,12 @@ func (h *Handler) PublisherBooks(w http.ResponseWriter, r *http.Request) {
 // @Produce      json
 // @Success      200  {object}  map[string]interface{}
 // @Router       /v1/client/selection [get]
-func (h *Handler) Selection(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) Selection(w http.ResponseWriter, r *http.Request) (any, error) {
 	cacheKey := "books:selection"
 	if h.redis != nil {
 		var cached map[string]interface{}
 		if err := h.redis.GetJSON(r.Context(), cacheKey, &cached); err == nil && cached != nil {
-			httputil.RespondJSON(w, 200, cached)
-			return
+			return cached, nil
 		}
 	}
 
@@ -406,7 +393,7 @@ func (h *Handler) Selection(w http.ResponseWriter, r *http.Request) {
 		_ = h.redis.SetJSON(r.Context(), cacheKey, result, time.Hour)
 	}
 
-	httputil.RespondJSON(w, 200, result)
+	return result, nil
 }
 
 // @Summary      获取阅读进度
@@ -416,16 +403,15 @@ func (h *Handler) Selection(w http.ResponseWriter, r *http.Request) {
 // @Success      200  {object}  data.BookReadingPos
 // @Security     BearerAuth
 // @Router       /v1/client/reading-pos [get]
-func (h *Handler) GetReadingPos(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) GetReadingPos(w http.ResponseWriter, r *http.Request) (any, error) {
 	userID := u.GetUserID(r)
 	bookID := u.PathInt(r, "bookId")
 
 	pos, err := h.bookRepo.GetReadingPos(userID, bookID)
 	if err != nil {
-		httputil.RespondJSON(w, 200, map[string]interface{}{"process": 0, "lastPosition": ""})
-		return
+		return map[string]interface{}{"process": 0, "lastPosition": ""}, nil
 	}
-	httputil.RespondJSON(w, 200, pos)
+	return pos, nil
 }
 
 // @Summary      上报阅读进度
@@ -436,16 +422,15 @@ func (h *Handler) GetReadingPos(w http.ResponseWriter, r *http.Request) {
 // @Success      200  {object}  map[string]bool
 // @Security     BearerAuth
 // @Router       /v1/client/reading-pos [post]
-func (h *Handler) ReportReadingPos(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) ReportReadingPos(w http.ResponseWriter, r *http.Request) (any, error) {
 	userID := u.GetUserID(r)
 	var pos data.BookReadingPos
 	json.NewDecoder(r.Body).Decode(&pos)
 	pos.UserID = userID
 	if err := h.bookRepo.UpsertReadingPos(&pos); err != nil {
-		exception.InternalServerError.Write(w, err.Error())
-		return
+		return nil, exception.InternalServerError.WithMsg(err.Error())
 	}
-	httputil.RespondJSON(w, 200, map[string]bool{"ok": true})
+	return map[string]bool{"ok": true}, nil
 }
 
 // @Summary      获取书籍笔记列表
@@ -455,12 +440,12 @@ func (h *Handler) ReportReadingPos(w http.ResponseWriter, r *http.Request) {
 // @Success      200  {array}   map[string]interface{}
 // @Security     BearerAuth
 // @Router       /v1/client/book-notes [get]
-func (h *Handler) BookNotesList(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) BookNotesList(w http.ResponseWriter, r *http.Request) (any, error) {
 	userID := u.GetUserID(r)
 	var q BookIDQuery
 	binder.BindQuery(r, &q)
 	notes, _ := h.userRepo.FindBookNotes(userID, q.BookID)
-	httputil.RespondJSON(w, 200, notes)
+	return notes, nil
 }
 
 // @Summary      创建/更新书籍笔记
@@ -471,17 +456,15 @@ func (h *Handler) BookNotesList(w http.ResponseWriter, r *http.Request) {
 // @Success      200  {object}  map[string]interface{}
 // @Security     BearerAuth
 // @Router       /v1/client/book-notes [post]
-func (h *Handler) BookNotesCreate(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) BookNotesCreate(w http.ResponseWriter, r *http.Request) (any, error) {
 	userID := u.GetUserID(r)
 	var input CreateBookNoteReq
 	if err := httputil.DecodeAndValidate(r, &input); err != nil {
-		exception.InvalidBody.Write(w)
-		return
+		return nil, exception.InvalidBody
 	}
 	exists, _ := h.bookRepo.ExistsByID(input.BookID)
 	if !exists {
-		BookNotFound.Write(w, fmt.Sprintf("Book #%d not found", input.BookID))
-		return
+		return nil, BookNotFound.WithMsg(fmt.Sprintf("Book #%d not found", input.BookID))
 	}
 	note := &data.BookNote{
 		UserID: userID,
@@ -492,10 +475,9 @@ func (h *Handler) BookNotesCreate(w http.ResponseWriter, r *http.Request) {
 		note.ID = *input.ID
 	}
 	if err := h.userRepo.UpsertBookNote(note); err != nil {
-		exception.InternalServerError.Write(w, err.Error())
-		return
+		return nil, exception.InternalServerError.WithMsg(err.Error())
 	}
-	httputil.RespondJSON(w, 200, note)
+	return note, nil
 }
 
 // @Summary      更新书籍笔记
@@ -507,20 +489,18 @@ func (h *Handler) BookNotesCreate(w http.ResponseWriter, r *http.Request) {
 // @Success      200  {object}  map[string]interface{}
 // @Security     BearerAuth
 // @Router       /v1/client/book-notes/{id} [patch]
-func (h *Handler) BookNotesUpdate(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) BookNotesUpdate(w http.ResponseWriter, r *http.Request) (any, error) {
 	userID := u.GetUserID(r)
 	id := u.PathInt(r, "id")
 	var input UpdateBookNoteReq
 	if err := httputil.DecodeAndValidate(r, &input); err != nil {
-		exception.InvalidBody.Write(w)
-		return
+		return nil, exception.InvalidBody
 	}
 	note, err := h.userRepo.UpdateBookNote(id, userID, input.Note)
 	if err != nil {
-		BookNotFound.Write(w, fmt.Sprintf("Book #%d not found", id))
-		return
+		return nil, BookNotFound.WithMsg(fmt.Sprintf("Book #%d not found", id))
 	}
-	httputil.RespondJSON(w, 200, note)
+	return note, nil
 }
 
 // @Summary      删除书籍笔记
@@ -530,22 +510,20 @@ func (h *Handler) BookNotesUpdate(w http.ResponseWriter, r *http.Request) {
 // @Success      200  {object}  map[string]bool
 // @Security     BearerAuth
 // @Router       /v1/client/book-notes/{id} [delete]
-func (h *Handler) BookNotesDelete(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) BookNotesDelete(w http.ResponseWriter, r *http.Request) (any, error) {
 	userID := u.GetUserID(r)
 	id := u.PathInt(r, "id")
 	if err := h.userRepo.DeleteBookNote(id, userID); err != nil {
-		BookNotFound.Write(w, fmt.Sprintf("Book #%d not found", id))
-		return
+		return nil, BookNotFound.WithMsg(fmt.Sprintf("Book #%d not found", id))
 	}
-	httputil.RespondJSON(w, 200, map[string]interface{}{"id": id})
+	return map[string]interface{}{"id": id}, nil
 }
 
-func (h *Handler) BookNotesDeleteByPost(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) BookNotesDeleteByPost(w http.ResponseWriter, r *http.Request) (any, error) {
 	userID := u.GetUserID(r)
 	id := u.PathInt(r, "id")
 	if err := h.userRepo.DeleteBookNote(id, userID); err != nil {
-		BookNotFound.Write(w, fmt.Sprintf("Book #%d not found", id))
-		return
+		return nil, BookNotFound.WithMsg(fmt.Sprintf("Book #%d not found", id))
 	}
-	httputil.RespondJSON(w, 200, map[string]interface{}{"id": id})
+	return map[string]interface{}{"id": id}, nil
 }

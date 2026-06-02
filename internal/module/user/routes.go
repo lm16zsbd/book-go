@@ -1,6 +1,10 @@
 package user
 
-import "github.com/go-chi/chi/v5"
+import (
+	"github.com/go-chi/chi/v5"
+
+	"serica-go/internal/pkg/httputil"
+)
 
 const BasePath = "/v1/client"
 
@@ -13,28 +17,28 @@ func NewRoutes(h *Handler) *Routes {
 }
 
 func (r *Routes) Register(router chi.Router) {
-	router.Post("/login", r.Handler.Login)
+	router.Post("/login", httputil.Wrap(r.Handler.Login))
 
 	router.Route("/user", func(sub chi.Router) {
-		sub.Post("/register", r.Handler.Register)
-		sub.Get("/profile", r.Handler.GetProfile)
-		sub.Patch("/profile", r.Handler.UpdateProfile)
-		sub.Get("/favourites", r.Handler.GetFavourites)
+		sub.Post("/register", httputil.Wrap(r.Handler.Register))
+		sub.Get("/profile", httputil.Wrap(r.Handler.GetProfile))
+		sub.Patch("/profile", httputil.Wrap(r.Handler.UpdateProfile))
+		sub.Get("/favourites", httputil.Wrap(r.Handler.GetFavourites))
 	})
 
 	router.Route("/books", func(sub chi.Router) {
-		sub.Post("/{bookId}/favourite", r.Handler.ToggleFavourite)
-		sub.Post("/cancelFavourite", r.Handler.BatchCancelFavourite)
-		sub.Get("/{bookId}/bookmarks", r.Handler.GetBookmarks)
-		sub.Post("/{bookId}/bookmarks", r.Handler.CreateBookmark)
-		sub.Get("/{bookId}/annotations", r.Handler.GetAnnotations)
-		sub.Post("/{bookId}/annotations", r.Handler.CreateAnnotation)
+		sub.Post("/{bookId}/favourite", httputil.Wrap(r.Handler.ToggleFavourite))
+		sub.Post("/cancelFavourite", httputil.Wrap(r.Handler.BatchCancelFavourite))
+		sub.Get("/{bookId}/bookmarks", httputil.Wrap(r.Handler.GetBookmarks))
+		sub.Post("/{bookId}/bookmarks", httputil.Wrap(r.Handler.CreateBookmark))
+		sub.Get("/{bookId}/annotations", httputil.Wrap(r.Handler.GetAnnotations))
+		sub.Post("/{bookId}/annotations", httputil.Wrap(r.Handler.CreateAnnotation))
 	})
 
-	router.Delete("/bookmarks/{bookmarkId}", r.Handler.DeleteBookmark)
+	router.Delete("/bookmarks/{bookmarkId}", httputil.Wrap(r.Handler.DeleteBookmark))
 
 	router.Route("/reader-config", func(sub chi.Router) {
-		sub.Get("/", r.Handler.GetReaderConfig)
-		sub.Post("/", r.Handler.SaveReaderConfig)
+		sub.Get("/", httputil.Wrap(r.Handler.GetReaderConfig))
+		sub.Post("/", httputil.Wrap(r.Handler.SaveReaderConfig))
 	})
 }

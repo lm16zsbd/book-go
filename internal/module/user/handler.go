@@ -132,7 +132,7 @@ func (h *Handler) GetProfile(w http.ResponseWriter, r *http.Request) (any, error
 // @Tags         User
 // @Accept       json
 // @Produce      json
-// @Param        body body UpdateProfileInput true "更新信息"
+// @Param        body body UpdateProfileReq true "更新信息"
 // @Success      200  {object}  map[string]bool
 // @Security     BearerAuth
 // @Router       /v1/client/user/profile [patch]
@@ -218,7 +218,7 @@ func (h *Handler) ToggleFavourite(w http.ResponseWriter, r *http.Request) (any, 
 // @Tags         User
 // @Accept       json
 // @Produce      json
-// @Param        body body BatchCancelFavouriteInput true "批量取消收藏参数"
+// @Param        body body BatchCancelFavouriteReq true "批量取消收藏参数"
 // @Success      201  {object}  map[string]interface{}
 // @Security     BearerAuth
 // @Router       /v1/client/books/cancelFavourite [post]

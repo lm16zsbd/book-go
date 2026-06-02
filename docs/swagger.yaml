@@ -1,6 +1,16 @@
 basePath: /
 definitions:
-  book.CreateBookNoteInput:
+  book.CreateBookNoteReq:
+    properties:
+      bookId:
+        type: integer
+      id:
+        type: integer
+      note:
+        type: string
+    required:
+    - bookId
+    - note
     type: object
   book.TTSInput:
     properties:
@@ -16,6 +26,46 @@ definitions:
       data:
         type: string
       language:
+        type: string
+    type: object
+  book.UpdateBookNoteReq:
+    properties:
+      note:
+        type: string
+    required:
+    - note
+    type: object
+  data.Book:
+    properties:
+      author:
+        type: string
+      category:
+        type: string
+      coverUrl:
+        type: string
+      createdAt:
+        type: string
+      desc:
+        type: string
+      fileType:
+        type: string
+      id:
+        type: integer
+      isbn:
+        type: string
+      key:
+        type: string
+      language:
+        type: string
+      publishDate:
+        type: string
+      publisher:
+        type: string
+      title:
+        type: string
+      updatedAt:
+        type: string
+      url:
         type: string
     type: object
   data.BookReadingPos:
@@ -44,7 +94,44 @@ definitions:
       name:
         type: string
     type: object
-  user.BatchCancelFavouriteInput:
+  home.BannerItem:
+    properties:
+      author:
+        type: string
+      coverUrl:
+        type: string
+      desc:
+        type: string
+      id:
+        type: integer
+      isFavourite:
+        type: boolean
+      title:
+        type: string
+    type: object
+  home.HomeResponse:
+    properties:
+      banners:
+        items:
+          $ref: '#/definitions/home.BannerItem'
+        type: array
+      categories:
+        items:
+          $ref: '#/definitions/data.Category'
+        type: array
+    type: object
+  home.HomepageSection:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/data.Book'
+        type: array
+      title:
+        type: string
+      total:
+        type: integer
+    type: object
+  user.BatchCancelFavouriteReq:
     properties:
       bookIds:
         items:
@@ -57,12 +144,14 @@ definitions:
       selectAll:
         type: boolean
     type: object
-  user.LoginInput:
+  user.LoginReq:
     properties:
       email:
         type: string
+    required:
+    - email
     type: object
-  user.UpdateProfileInput:
+  user.UpdateProfileReq:
     properties:
       avatar:
         type: string
@@ -169,7 +258,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/book.CreateBookNoteInput'
+          $ref: '#/definitions/book.CreateBookNoteReq'
       produces:
       - application/json
       responses:
@@ -219,7 +308,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/book.CreateBookNoteInput'
+          $ref: '#/definitions/book.UpdateBookNoteReq'
       produces:
       - application/json
       responses:
@@ -449,7 +538,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/user.BatchCancelFavouriteInput'
+          $ref: '#/definitions/user.BatchCancelFavouriteReq'
       produces:
       - application/json
       responses:
@@ -569,8 +658,7 @@ paths:
         "200":
           description: OK
           schema:
-            additionalProperties: true
-            type: object
+            $ref: '#/definitions/home.HomeResponse'
       summary: 首页数据
       tags:
       - Home
@@ -583,8 +671,7 @@ paths:
           description: OK
           schema:
             items:
-              additionalProperties: true
-              type: object
+              $ref: '#/definitions/home.HomepageSection'
             type: array
       summary: 首页栏目
       tags:
@@ -600,7 +687,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/user.LoginInput'
+          $ref: '#/definitions/user.LoginReq'
       produces:
       - application/json
       responses:
@@ -720,45 +807,6 @@ paths:
       summary: 保存阅读器配置
       tags:
       - User
-  /v1/client/reader/config:
-    get:
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            additionalProperties: true
-            type: object
-      security:
-      - BearerAuth: []
-      summary: 获取阅读器配置
-      tags:
-      - Reader
-    patch:
-      consumes:
-      - application/json
-      parameters:
-      - description: 配置信息
-        in: body
-        name: body
-        required: true
-        schema:
-          additionalProperties: true
-          type: object
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            additionalProperties: true
-            type: object
-      security:
-      - BearerAuth: []
-      summary: 更新阅读器配置
-      tags:
-      - Reader
   /v1/client/reading-pos:
     get:
       parameters:
@@ -977,7 +1025,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/user.UpdateProfileInput'
+          $ref: '#/definitions/user.UpdateProfileReq'
       produces:
       - application/json
       responses:
@@ -1003,7 +1051,7 @@ paths:
         name: body
         required: true
         schema:
-          $ref: '#/definitions/user.LoginInput'
+          $ref: '#/definitions/user.LoginReq'
       produces:
       - application/json
       responses:

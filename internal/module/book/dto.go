@@ -1,7 +1,6 @@
 package book
 
 import (
-	"encoding/json"
 	"strings"
 	"time"
 
@@ -115,13 +114,13 @@ type SelectionResponse struct {
 }
 
 type CreateBookNoteReq struct {
-	ID     *int64          `json:"id,omitempty"`
-	BookID int64           `json:"bookId" validate:"required"`
-	Note   json.RawMessage `json:"note" validate:"required"`
+	ID     *int64 `json:"id,omitempty"`
+	BookID int64  `json:"bookId" validate:"required"`
+	Note   string `json:"note" validate:"required"`
 }
 
 type UpdateBookNoteReq struct {
-	Note json.RawMessage `json:"note" validate:"required"`
+	Note string `json:"note" validate:"required"`
 }
 
 type TransReq struct {

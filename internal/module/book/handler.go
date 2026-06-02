@@ -469,7 +469,7 @@ func (h *Handler) BookNotesCreate(w http.ResponseWriter, r *http.Request) (any, 
 	note := &data.BookNote{
 		UserID: userID,
 		BookID: input.BookID,
-		Note:   input.Note,
+		Note:   json.RawMessage(input.Note),
 	}
 	if input.ID != nil {
 		note.ID = *input.ID
@@ -496,7 +496,7 @@ func (h *Handler) BookNotesUpdate(w http.ResponseWriter, r *http.Request) (any, 
 	if err := httputil.DecodeAndValidate(r, &input); err != nil {
 		return nil, exception.InvalidBody
 	}
-	note, err := h.userRepo.UpdateBookNote(id, userID, input.Note)
+	note, err := h.userRepo.UpdateBookNote(id, userID, json.RawMessage(input.Note))
 	if err != nil {
 		return nil, BookNotFound.WithMsg(fmt.Sprintf("Book #%d not found", id))
 	}

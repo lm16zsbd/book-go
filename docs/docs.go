@@ -159,7 +159,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/book.CreateBookNoteInput"
+                            "$ref": "#/definitions/book.CreateBookNoteReq"
                         }
                     }
                 ],
@@ -239,7 +239,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/book.CreateBookNoteInput"
+                            "$ref": "#/definitions/book.UpdateBookNoteReq"
                         }
                     }
                 ],
@@ -363,7 +363,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/user.BatchCancelFavouriteInput"
+                            "$ref": "#/definitions/user.BatchCancelFavouriteReq"
                         }
                     }
                 ],
@@ -780,8 +780,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "$ref": "#/definitions/home.HomeResponse"
                         }
                     }
                 }
@@ -802,8 +801,7 @@ const docTemplate = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "type": "object",
-                                "additionalProperties": true
+                                "$ref": "#/definitions/home.HomepageSection"
                             }
                         }
                     }
@@ -830,7 +828,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/user.LoginInput"
+                            "$ref": "#/definitions/user.LoginReq"
                         }
                     }
                 ],
@@ -988,69 +986,6 @@ const docTemplate = `{
                     "User"
                 ],
                 "summary": "保存阅读器配置",
-                "parameters": [
-                    {
-                        "description": "配置信息",
-                        "name": "body",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    }
-                }
-            }
-        },
-        "/v1/client/reader/config": {
-            "get": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Reader"
-                ],
-                "summary": "获取阅读器配置",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "object",
-                            "additionalProperties": true
-                        }
-                    }
-                }
-            },
-            "patch": {
-                "security": [
-                    {
-                        "BearerAuth": []
-                    }
-                ],
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Reader"
-                ],
-                "summary": "更新阅读器配置",
                 "parameters": [
                     {
                         "description": "配置信息",
@@ -1427,7 +1362,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/user.UpdateProfileInput"
+                            "$ref": "#/definitions/user.UpdateProfileReq"
                         }
                     }
                 ],
@@ -1464,7 +1399,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/user.LoginInput"
+                            "$ref": "#/definitions/user.LoginReq"
                         }
                     }
                 ],
@@ -1483,8 +1418,23 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "book.CreateBookNoteInput": {
-            "type": "object"
+        "book.CreateBookNoteReq": {
+            "type": "object",
+            "required": [
+                "bookId",
+                "note"
+            ],
+            "properties": {
+                "bookId": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "note": {
+                    "type": "string"
+                }
+            }
         },
         "book.TTSInput": {
             "type": "object",
@@ -1507,6 +1457,67 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "language": {
+                    "type": "string"
+                }
+            }
+        },
+        "book.UpdateBookNoteReq": {
+            "type": "object",
+            "required": [
+                "note"
+            ],
+            "properties": {
+                "note": {
+                    "type": "string"
+                }
+            }
+        },
+        "data.Book": {
+            "type": "object",
+            "properties": {
+                "author": {
+                    "type": "string"
+                },
+                "category": {
+                    "type": "string"
+                },
+                "coverUrl": {
+                    "type": "string"
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "desc": {
+                    "type": "string"
+                },
+                "fileType": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "isbn": {
+                    "type": "string"
+                },
+                "key": {
+                    "type": "string"
+                },
+                "language": {
+                    "type": "string"
+                },
+                "publishDate": {
+                    "type": "string"
+                },
+                "publisher": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "updatedAt": {
+                    "type": "string"
+                },
+                "url": {
                     "type": "string"
                 }
             }
@@ -1551,7 +1562,64 @@ const docTemplate = `{
                 }
             }
         },
-        "user.BatchCancelFavouriteInput": {
+        "home.BannerItem": {
+            "type": "object",
+            "properties": {
+                "author": {
+                    "type": "string"
+                },
+                "coverUrl": {
+                    "type": "string"
+                },
+                "desc": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "isFavourite": {
+                    "type": "boolean"
+                },
+                "title": {
+                    "type": "string"
+                }
+            }
+        },
+        "home.HomeResponse": {
+            "type": "object",
+            "properties": {
+                "banners": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/home.BannerItem"
+                    }
+                },
+                "categories": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/data.Category"
+                    }
+                }
+            }
+        },
+        "home.HomepageSection": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/data.Book"
+                    }
+                },
+                "title": {
+                    "type": "string"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "user.BatchCancelFavouriteReq": {
             "type": "object",
             "properties": {
                 "bookIds": {
@@ -1571,15 +1639,18 @@ const docTemplate = `{
                 }
             }
         },
-        "user.LoginInput": {
+        "user.LoginReq": {
             "type": "object",
+            "required": [
+                "email"
+            ],
             "properties": {
                 "email": {
                     "type": "string"
                 }
             }
         },
-        "user.UpdateProfileInput": {
+        "user.UpdateProfileReq": {
             "type": "object",
             "properties": {
                 "avatar": {

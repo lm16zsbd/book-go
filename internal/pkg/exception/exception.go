@@ -2,6 +2,7 @@ package exception
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 )
 
@@ -21,6 +22,23 @@ func NewException(group, code int, name string, messages map[string]string, http
 		MultilingualMessage: messages,
 		HTTPStatus:          httpStatus,
 	}
+}
+
+func (e *Exception) Error() string {
+	return fmt.Sprintf("[%d] %s", e.FullCode(), e.DefaultMessage())
+}
+
+func (e *Exception) WithMsg(msg string) *ExError {
+	return &ExError{Exception: e, Message: msg}
+}
+
+type ExError struct {
+	*Exception
+	Message string
+}
+
+func (e *ExError) Error() string {
+	return fmt.Sprintf("[%d] %s", e.FullCode(), e.Message)
 }
 
 func (e *Exception) FullCode() int {

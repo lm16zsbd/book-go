@@ -35,6 +35,7 @@ func NewRouter(
 	r := chi.NewRouter()
 
 	r.Use(middleware.Logger)
+	r.Use(svrMiddleware.RequestTimer)
 	r.Use(svrMiddleware.CORS(cfg.Server.CORS))
 	r.Use(svrMiddleware.Recovery)
 
@@ -71,6 +72,8 @@ func NewRouter(
 		r.Use(svrMiddleware.Auth(userRepo, redis, svrMiddleware.SchemaClient, svrMiddleware.SchemaPublic))
 		readerRoutes.Register(r)
 	})
+
+	r.NotFound(svrMiddleware.NotFoundHandler())
 
 	_ = redis
 

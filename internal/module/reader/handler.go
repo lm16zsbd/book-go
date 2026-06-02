@@ -1,11 +1,11 @@
 package reader
 
 import (
-	"encoding/json"
 	"net/http"
 
 	"serica-go/internal/data"
 	u "serica-go/internal/module/user"
+	"serica-go/internal/pkg/exception"
 	"serica-go/internal/pkg/httputil"
 )
 
@@ -18,12 +18,6 @@ func NewHandler(userRepo *data.UserRepo, bookRepo *data.BookRepo) *Handler {
 	return &Handler{userRepo: userRepo, bookRepo: bookRepo}
 }
 
-// @Summary      获取阅读器配置
-// @Tags         Reader
-// @Produce      json
-// @Success      200  {object}  map[string]interface{}
-// @Security     BearerAuth
-// @Router       /v1/client/reader/config [get]
 func (h *Handler) GetConfig(w http.ResponseWriter, r *http.Request) {
 	userID := u.GetUserID(r)
 	cfg, err := h.userRepo.GetReaderConfig(userID)
@@ -34,30 +28,22 @@ func (h *Handler) GetConfig(w http.ResponseWriter, r *http.Request) {
 	httputil.RespondJSON(w, 200, cfg)
 }
 
-// @Summary      更新阅读器配置
-// @Tags         Reader
-// @Accept       json
-// @Produce      json
-// @Param        body body map[string]interface{} true "配置信息"
-// @Success      200  {object}  map[string]interface{}
-// @Security     BearerAuth
-// @Router       /v1/client/reader/config [patch]
 func (h *Handler) UpdateConfig(w http.ResponseWriter, r *http.Request) {
 	userID := u.GetUserID(r)
-	var input map[string]interface{}
-	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		httputil.RespondJSON(w, 400, map[string]string{"error": "invalid body"})
+	var input ReaderConfigReq
+	if err := httputil.DecodeAndValidate(r, &input); err != nil {
+		exception.InvalidBody.Write(w)
 		return
 	}
 	cfg := &data.ReaderConfig{UserID: userID}
-	if theme, ok := input["theme"].(string); ok {
-		cfg.Theme = theme
+	if input.Theme != nil {
+		cfg.Theme = *input.Theme
 	}
-	if fontSize, ok := input["fontSize"].(float64); ok {
-		cfg.FontSize = int(fontSize)
+	if input.FontSize != nil {
+		cfg.FontSize = *input.FontSize
 	}
 	if err := h.userRepo.SaveReaderConfig(cfg); err != nil {
-		httputil.RespondJSON(w, 500, map[string]string{"error": err.Error()})
+		exception.InternalServerError.Write(w, err.Error())
 		return
 	}
 	httputil.RespondJSON(w, 200, cfg)
@@ -70,17 +56,11 @@ func (h *Handler) GetBookmarks(w http.ResponseWriter, r *http.Request) {
 	httputil.RespondJSON(w, 200, bookmarks)
 }
 
-type CreateBookmarkInput struct {
-	BookID   int64  `json:"bookId"`
-	Title    string `json:"title"`
-	Position string `json:"position"`
-}
-
 func (h *Handler) CreateBookmark(w http.ResponseWriter, r *http.Request) {
 	userID := u.GetUserID(r)
-	var input CreateBookmarkInput
-	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		httputil.RespondJSON(w, 400, map[string]string{"error": "invalid body"})
+	var input CreateBookmarkReq
+	if err := httputil.DecodeAndValidate(r, &input); err != nil {
+		exception.InvalidBody.Write(w)
 		return
 	}
 	bm := &data.Bookmark{
@@ -90,7 +70,7 @@ func (h *Handler) CreateBookmark(w http.ResponseWriter, r *http.Request) {
 		Position: input.Position,
 	}
 	if err := h.userRepo.CreateBookmark(bm); err != nil {
-		httputil.RespondJSON(w, 500, map[string]string{"error": err.Error()})
+		exception.InternalServerError.Write(w, err.Error())
 		return
 	}
 	httputil.RespondJSON(w, 200, bm)
@@ -103,19 +83,11 @@ func (h *Handler) GetAnnotations(w http.ResponseWriter, r *http.Request) {
 	httputil.RespondJSON(w, 200, annotations)
 }
 
-type CreateAnnotationInput struct {
-	BookID   int64  `json:"bookId"`
-	Content  string `json:"text"`
-	Color    string `json:"color"`
-	Position string `json:"position"`
-	Note     string `json:"note"`
-}
-
 func (h *Handler) CreateAnnotation(w http.ResponseWriter, r *http.Request) {
 	userID := u.GetUserID(r)
-	var input CreateAnnotationInput
-	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		httputil.RespondJSON(w, 400, map[string]string{"error": "invalid body"})
+	var input CreateAnnotationReq
+	if err := httputil.DecodeAndValidate(r, &input); err != nil {
+		exception.InvalidBody.Write(w)
 		return
 	}
 	a := &data.Annotation{
@@ -126,22 +98,17 @@ func (h *Handler) CreateAnnotation(w http.ResponseWriter, r *http.Request) {
 		Position: input.Position,
 	}
 	if err := h.userRepo.CreateAnnotation(a); err != nil {
-		httputil.RespondJSON(w, 500, map[string]string{"error": err.Error()})
+		exception.InternalServerError.Write(w, err.Error())
 		return
 	}
 	httputil.RespondJSON(w, 200, a)
 }
 
-type UpdateAnnotationInput struct {
-	Note  *string `json:"note,omitempty"`
-	Color *string `json:"color,omitempty"`
-}
-
 func (h *Handler) UpdateAnnotation(w http.ResponseWriter, r *http.Request) {
 	id := u.PathInt(r, "annotationId")
-	var input UpdateAnnotationInput
-	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		httputil.RespondJSON(w, 400, map[string]string{"error": "invalid body"})
+	var input UpdateAnnotationReq
+	if err := httputil.DecodeAndValidate(r, &input); err != nil {
+		exception.InvalidBody.Write(w)
 		return
 	}
 	updates := make(map[string]interface{})
@@ -152,7 +119,7 @@ func (h *Handler) UpdateAnnotation(w http.ResponseWriter, r *http.Request) {
 		updates["color"] = *input.Color
 	}
 	if err := h.userRepo.UpdateAnnotation(id, updates); err != nil {
-		httputil.RespondJSON(w, 500, map[string]string{"error": err.Error()})
+		exception.InternalServerError.Write(w, err.Error())
 		return
 	}
 	httputil.RespondJSON(w, 200, map[string]bool{"ok": true})

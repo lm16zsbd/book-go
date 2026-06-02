@@ -14,21 +14,27 @@ func NewRoutes(h *Handler) *Routes {
 
 func (r *Routes) Register(router chi.Router) {
 	router.Post("/login", r.Handler.Login)
-	router.Post("/user/register", r.Handler.Register)
-	router.Get("/user/profile", r.Handler.GetProfile)
-	router.Patch("/user/profile", r.Handler.UpdateProfile)
 
-	router.Get("/user/favourites", r.Handler.GetFavourites)
-	router.Post("/books/{bookId}/favourite", r.Handler.ToggleFavourite)
-	router.Post("/books/cancelFavourite", r.Handler.BatchCancelFavourite)
+	router.Route("/user", func(sub chi.Router) {
+		sub.Post("/register", r.Handler.Register)
+		sub.Get("/profile", r.Handler.GetProfile)
+		sub.Patch("/profile", r.Handler.UpdateProfile)
+		sub.Get("/favourites", r.Handler.GetFavourites)
+	})
 
-	router.Get("/books/{bookId}/bookmarks", r.Handler.GetBookmarks)
-	router.Post("/books/{bookId}/bookmarks", r.Handler.CreateBookmark)
+	router.Route("/books", func(sub chi.Router) {
+		sub.Post("/{bookId}/favourite", r.Handler.ToggleFavourite)
+		sub.Post("/cancelFavourite", r.Handler.BatchCancelFavourite)
+		sub.Get("/{bookId}/bookmarks", r.Handler.GetBookmarks)
+		sub.Post("/{bookId}/bookmarks", r.Handler.CreateBookmark)
+		sub.Get("/{bookId}/annotations", r.Handler.GetAnnotations)
+		sub.Post("/{bookId}/annotations", r.Handler.CreateAnnotation)
+	})
+
 	router.Delete("/bookmarks/{bookmarkId}", r.Handler.DeleteBookmark)
 
-	router.Get("/books/{bookId}/annotations", r.Handler.GetAnnotations)
-	router.Post("/books/{bookId}/annotations", r.Handler.CreateAnnotation)
-
-	router.Get("/reader-config", r.Handler.GetReaderConfig)
-	router.Post("/reader-config", r.Handler.SaveReaderConfig)
+	router.Route("/reader-config", func(sub chi.Router) {
+		sub.Get("/", r.Handler.GetReaderConfig)
+		sub.Post("/", r.Handler.SaveReaderConfig)
+	})
 }

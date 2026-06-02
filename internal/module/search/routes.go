@@ -13,9 +13,12 @@ func NewRoutes(h *Handler) *Routes {
 }
 
 func (r *Routes) Register(router chi.Router) {
-	router.Get("/search/history", r.Handler.GetHistory)
-	router.Delete("/search/history", r.Handler.ClearHistory)
-	router.Get("/search/hot", r.Handler.GetHot)
+	router.Route("/search", func(sub chi.Router) {
+		sub.Get("/history", r.Handler.GetHistory)
+		sub.Delete("/history", r.Handler.ClearHistory)
+		sub.Get("/hot", r.Handler.GetHot)
+	})
+
 	router.Get("/hot-word", r.Handler.GetHotWords)
 	router.Get("/search-word", r.Handler.GetRecommendWords)
 }

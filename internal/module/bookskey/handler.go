@@ -28,7 +28,7 @@ func (h *Handler) GetKey(w http.ResponseWriter, r *http.Request) {
 	bookID := u.PathInt(r, "bookId")
 	key, err := h.bookKeyRepo.FindByBookID(bookID)
 	if err != nil {
-		httputil.RespondJSON(w, 404, map[string]string{"error": "key not found"})
+		KeyNotFound.Write(w)
 		return
 	}
 	httputil.RespondJSON(w, 200, key)

@@ -13,14 +13,18 @@ func NewRoutes(h *Handler) *Routes {
 }
 
 func (r *Routes) Register(router chi.Router) {
-	router.Get("/config", r.Handler.GetConfig)
-	router.Patch("/config", r.Handler.UpdateConfig)
+	router.Route("/config", func(sub chi.Router) {
+		sub.Get("/", r.Handler.GetConfig)
+		sub.Patch("/", r.Handler.UpdateConfig)
+	})
+
+	router.Route("/notes", func(sub chi.Router) {
+		sub.Post("/", r.Handler.CreateAnnotation)
+		sub.Patch("/{annotationId}", r.Handler.UpdateAnnotation)
+		sub.Delete("/{annotationId}", r.Handler.DeleteAnnotation)
+	})
 
 	router.Get("/books/{id}/bookmarks", r.Handler.GetBookmarks)
 	router.Post("/bookmarks", r.Handler.CreateBookmark)
-
 	router.Get("/books/{id}/notes", r.Handler.GetAnnotations)
-	router.Post("/notes", r.Handler.CreateAnnotation)
-	router.Patch("/notes/{annotationId}", r.Handler.UpdateAnnotation)
-	router.Delete("/notes/{annotationId}", r.Handler.DeleteAnnotation)
 }

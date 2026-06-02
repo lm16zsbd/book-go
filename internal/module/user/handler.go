@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"serica-go/internal/data"
+	"serica-go/internal/pkg/exception"
 	"serica-go/internal/pkg/httputil"
 	"serica-go/internal/utl/rand"
 )
@@ -18,10 +19,6 @@ func NewHandler(userRepo *data.UserRepo, redis *data.RedisClient) *Handler {
 	return &Handler{userRepo: userRepo, redis: redis}
 }
 
-type LoginInput struct {
-	Email string `json:"email"`
-}
-
 const sessionKeyPrefix = "session:token:"
 const sessionTTL = 7 * 24 * 60 * 60
 
@@ -30,21 +27,21 @@ const sessionTTL = 7 * 24 * 60 * 60
 // @Tags         User
 // @Accept       json
 // @Produce      json
-// @Param        body body LoginInput true "登录信息"
+// @Param        body body LoginReq true "登录信息"
 // @Success      200  {object}  map[string]interface{}
 // @Failure      400  {object}  map[string]string
 // @Failure      401  {object}  map[string]string
 // @Router       /v1/client/login [post]
 func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
-	var input LoginInput
-	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		httputil.RespondJSON(w, 400, map[string]string{"error": "invalid body"})
+	var input LoginReq
+	if err := httputil.DecodeAndValidate(r, &input); err != nil {
+		exception.InvalidBody.Write(w)
 		return
 	}
 
 	user, err := h.userRepo.FindByEmail(input.Email)
 	if err != nil {
-		httputil.RespondJSON(w, 401, map[string]string{"error": "user not found"})
+		exception.Unauthorized.Write(w, "user not found")
 		return
 	}
 
@@ -79,13 +76,13 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 // @Tags         User
 // @Accept       json
 // @Produce      json
-// @Param        body body LoginInput true "注册信息"
+// @Param        body body LoginReq true "注册信息"
 // @Success      200  {object}  map[string]string
 // @Router       /v1/client/user/register [post]
 func (h *Handler) Register(w http.ResponseWriter, r *http.Request) {
-	var input LoginInput
-	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		httputil.RespondJSON(w, 400, map[string]string{"error": "invalid body"})
+	var input LoginReq
+	if err := httputil.DecodeAndValidate(r, &input); err != nil {
+		exception.InvalidBody.Write(w)
 		return
 	}
 
@@ -129,17 +126,10 @@ func (h *Handler) GetProfile(w http.ResponseWriter, r *http.Request) {
 	userID := GetUserID(r)
 	user, err := h.userRepo.FindByID(userID)
 	if err != nil {
-		httputil.RespondJSON(w, 404, map[string]string{"error": "user not found"})
+		UserNotFound.Write(w)
 		return
 	}
 	httputil.RespondJSON(w, 200, user)
-}
-
-type UpdateProfileInput struct {
-	Name     *string `json:"name,omitempty"`
-	Avatar   *string `json:"avatar,omitempty"`
-	Language *string `json:"language,omitempty"`
-	Offset   *string `json:"offset,omitempty"`
 }
 
 // @Summary      更新用户信息
@@ -152,9 +142,9 @@ type UpdateProfileInput struct {
 // @Router       /v1/client/user/profile [patch]
 func (h *Handler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 	userID := GetUserID(r)
-	var input UpdateProfileInput
-	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		httputil.RespondJSON(w, 400, map[string]string{"error": "invalid body"})
+	var input UpdateProfileReq
+	if err := httputil.DecodeAndValidate(r, &input); err != nil {
+		exception.InvalidBody.Write(w)
 		return
 	}
 
@@ -178,7 +168,7 @@ func (h *Handler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.userRepo.Update(userID, updates); err != nil {
-		httputil.RespondJSON(w, 500, map[string]string{"error": err.Error()})
+		exception.InternalServerError.Write(w, err.Error())
 		return
 	}
 	httputil.RespondJSON(w, 200, map[string]bool{"ok": true})
@@ -203,7 +193,7 @@ func (h *Handler) GetFavourites(w http.ResponseWriter, r *http.Request) {
 	offset := (pageIndex - 1) * pageSize
 	items, total, err := h.userRepo.FindFavouritesPaginated(userID, offset, pageSize, desc)
 	if err != nil {
-		httputil.RespondJSON(w, 500, map[string]string{"error": err.Error()})
+		exception.InternalServerError.Write(w, err.Error())
 		return
 	}
 
@@ -227,16 +217,10 @@ func (h *Handler) ToggleFavourite(w http.ResponseWriter, r *http.Request) {
 	bookID := PathInt(r, "bookId")
 	isFavourite, err := h.userRepo.ToggleFavourite(userID, bookID)
 	if err != nil {
-		httputil.RespondJSON(w, 500, map[string]string{"error": err.Error()})
+		exception.InternalServerError.Write(w, err.Error())
 		return
 	}
 	httputil.RespondJSON(w, 200, map[string]bool{"isFavourite": isFavourite})
-}
-
-type BatchCancelFavouriteInput struct {
-	BookIDs    *[]int64 `json:"bookIds,omitempty"`
-	SelectAll  *bool    `json:"selectAll,omitempty"`
-	ExcludeIDs *[]int64 `json:"excludeIds,omitempty"`
 }
 
 // @Summary      批量取消收藏
@@ -250,11 +234,11 @@ type BatchCancelFavouriteInput struct {
 func (h *Handler) BatchCancelFavourite(w http.ResponseWriter, r *http.Request) {
 	userID := GetUserID(r)
 	if userID == 0 {
-		httputil.RespondJSON(w, 401, map[string]string{"error": "unauthorized"})
+		exception.Unauthorized.Write(w)
 		return
 	}
-	var input BatchCancelFavouriteInput
-	json.NewDecoder(r.Body).Decode(&input)
+	var input BatchCancelFavouriteReq
+	httputil.DecodeAndValidate(r, &input)
 
 	cancelled := int64(0)
 	if input.SelectAll != nil && *input.SelectAll {

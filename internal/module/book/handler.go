@@ -12,6 +12,8 @@ import (
 	"serica-go/internal/conf"
 	"serica-go/internal/data"
 	u "serica-go/internal/module/user"
+	"serica-go/internal/pkg/dto"
+	"serica-go/internal/pkg/exception"
 	"serica-go/internal/pkg/httputil"
 	"serica-go/internal/utl"
 	"serica-go/internal/utl/crypto"
@@ -60,11 +62,11 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 		Desc:         desc,
 	}, offset, pageSize)
 	if err != nil {
-		httputil.RespondJSON(w, 500, map[string]string{"error": err.Error()})
+		exception.InternalServerError.Write(w, err.Error())
 		return
 	}
 
-	httputil.RespondJSON(w, 200, u.NewPageResult(books, total, pageIndex, pageSize))
+	httputil.RespondJSON(w, 200, dto.NewPageResult(books, total, pageIndex, pageSize))
 }
 
 // @Summary      获取书籍详情
@@ -80,39 +82,35 @@ func (h *Handler) GetByID(w http.ResponseWriter, r *http.Request) {
 
 	book, err := h.bookRepo.FindByID(bookID)
 	if err != nil {
-		httputil.RespondJSON(w, 404, map[string]string{"error": "book not found"})
+		BookNotFound.Write(w)
 		return
 	}
 
-	result := map[string]interface{}{
-		"id":           book.ID,
-		"title":        utl.FirstLang(book.Title),
-		"author":       utl.FirstLang(book.Author),
-		"coverUrl":     book.CoverUrl,
-		"url":          book.Url,
-		"wrapKey":      h.getWrapKey(r.Context(), bookID, book.Key),
-		"publisher":    book.Publisher,
-		"publishedAt":  "",
-		"isbn":         book.ISBN,
-		"fileType":     book.FileType,
-		"language":     book.Language,
-		"desc":         book.Desc,
-		"isFavourite":  false,
-		"process":      0.0,
-		"lastPosition": "",
+	result := BookDetail{
+		ID:        book.ID,
+		Title:     utl.FirstLang(book.Title),
+		Author:    utl.FirstLang(book.Author),
+		CoverUrl:  book.CoverUrl,
+		Url:       book.Url,
+		WrapKey:   h.getWrapKey(r.Context(), bookID, book.Key),
+		Publisher: book.Publisher,
+		ISBN:      book.ISBN,
+		FileType:  book.FileType,
+		Language:  book.Language,
+		Desc:      book.Desc,
 	}
 
 	if book.PublishDate != nil {
-		result["publishedAt"] = book.PublishDate.Format(time.RFC3339)
+		result.PublishedAt = book.PublishDate.Format(time.RFC3339)
 	}
 
 	if userID > 0 {
 		if fav, err := h.userRepo.FindFavourite(userID, bookID); err == nil && fav != nil {
-			result["isFavourite"] = true
+			result.IsFavourite = true
 		}
 		if pos, err := h.bookRepo.GetReadingPos(userID, bookID); err == nil && pos != nil {
-			result["process"] = pos.Process
-			result["lastPosition"] = pos.LastPosition
+			result.Process = pos.Process
+			result.LastPosition = pos.LastPosition
 		}
 	}
 
@@ -182,11 +180,11 @@ func (h *Handler) Search(w http.ResponseWriter, r *http.Request) {
 		Desc:         desc,
 	}, offset, pageSize)
 	if err != nil {
-		httputil.RespondJSON(w, 500, map[string]string{"error": err.Error()})
+		exception.InternalServerError.Write(w, err.Error())
 		return
 	}
 
-	httputil.RespondJSON(w, 200, u.NewPageResult(books, total, pageIndex, pageSize))
+	httputil.RespondJSON(w, 200, dto.NewPageResult(books, total, pageIndex, pageSize))
 }
 
 func parseCommaSep(s string) []string {
@@ -264,7 +262,7 @@ func (h *Handler) CategoriesGetByID(w http.ResponseWriter, r *http.Request) {
 	id := u.PathInt(r, "id")
 	cat, err := h.bookRepo.FindCategoryByID(id)
 	if err != nil {
-		httputil.RespondJSON(w, 404, map[string]string{"error": "category not found"})
+		CategoryNotFound.Write(w)
 		return
 	}
 	httputil.RespondJSON(w, 200, cat)
@@ -286,10 +284,10 @@ func (h *Handler) CategoryBooks(w http.ResponseWriter, r *http.Request) {
 
 	books, total, err := h.bookRepo.FindBooksByCategory(id, offset, pageSize)
 	if err != nil {
-		httputil.RespondJSON(w, 200, u.NewPageResult([]data.Book{}, 0, pageIndex, pageSize))
+		httputil.RespondJSON(w, 200, dto.NewPageResult([]data.Book{}, 0, pageIndex, pageSize))
 		return
 	}
-	httputil.RespondJSON(w, 200, u.NewPageResult(books, total, pageIndex, pageSize))
+	httputil.RespondJSON(w, 200, dto.NewPageResult(books, total, pageIndex, pageSize))
 }
 
 // @Summary      获取作者列表
@@ -333,10 +331,10 @@ func (h *Handler) Authors(w http.ResponseWriter, r *http.Request) {
 	}
 	pagedNames := names[offset:end]
 
-	items := make([]map[string]interface{}, len(pagedNames))
+	items := make([]AuthorItem, len(pagedNames))
 	for i, n := range pagedNames {
 		count, _ := h.bookRepo.CountBooksByAuthor(n)
-		items[i] = map[string]interface{}{"name": n, "count": count}
+		items[i] = AuthorItem{Name: n, Count: count}
 	}
 
 	httputil.RespondJSON(w, 200, map[string]interface{}{
@@ -363,10 +361,10 @@ func (h *Handler) AuthorBooks(w http.ResponseWriter, r *http.Request) {
 
 	books, total, err := h.bookRepo.FindBooksByAuthor(name, offset, pageSize)
 	if err != nil {
-		httputil.RespondJSON(w, 200, u.NewPageResult([]data.Book{}, 0, pageIndex, pageSize))
+		httputil.RespondJSON(w, 200, dto.NewPageResult([]data.Book{}, 0, pageIndex, pageSize))
 		return
 	}
-	httputil.RespondJSON(w, 200, u.NewPageResult(books, total, pageIndex, pageSize))
+	httputil.RespondJSON(w, 200, dto.NewPageResult(books, total, pageIndex, pageSize))
 }
 
 // @Summary      获取出版社列表
@@ -410,10 +408,10 @@ func (h *Handler) Publishers(w http.ResponseWriter, r *http.Request) {
 	}
 	pagedNames := names[offset:end]
 
-	items := make([]map[string]interface{}, len(pagedNames))
+	items := make([]PublisherItem, len(pagedNames))
 	for i, n := range pagedNames {
 		count, _ := h.bookRepo.CountBooksByPublisher(n)
-		items[i] = map[string]interface{}{"name": n, "count": count}
+		items[i] = PublisherItem{Name: n, Count: count}
 	}
 
 	httputil.RespondJSON(w, 200, map[string]interface{}{
@@ -440,10 +438,10 @@ func (h *Handler) PublisherBooks(w http.ResponseWriter, r *http.Request) {
 
 	books, total, err := h.bookRepo.FindBooksByPublisher(name, offset, pageSize)
 	if err != nil {
-		httputil.RespondJSON(w, 200, u.NewPageResult([]data.Book{}, 0, pageIndex, pageSize))
+		httputil.RespondJSON(w, 200, dto.NewPageResult([]data.Book{}, 0, pageIndex, pageSize))
 		return
 	}
-	httputil.RespondJSON(w, 200, u.NewPageResult(books, total, pageIndex, pageSize))
+	httputil.RespondJSON(w, 200, dto.NewPageResult(books, total, pageIndex, pageSize))
 }
 
 // @Summary      获取筛选选项
@@ -464,11 +462,11 @@ func (h *Handler) Selection(w http.ResponseWriter, r *http.Request) {
 	cats, _ := h.bookRepo.FindDistinctCategories()
 	years, _ := h.bookRepo.FindSelectionYears()
 
-	result := map[string]interface{}{
-		"language":    []string{"繁體中文", "英文", "簡體中文"},
-		"fileType":    []string{"pdf", "epub"},
-		"category":    cats,
-		"publishedAt": years,
+	result := SelectionResponse{
+		Language:    []string{"繁體中文", "英文", "簡體中文"},
+		FileType:    []string{"pdf", "epub"},
+		Category:    cats,
+		PublishedAt: years,
 	}
 
 	if h.redis != nil {
@@ -511,7 +509,7 @@ func (h *Handler) ReportReadingPos(w http.ResponseWriter, r *http.Request) {
 	json.NewDecoder(r.Body).Decode(&pos)
 	pos.UserID = userID
 	if err := h.bookRepo.UpsertReadingPos(&pos); err != nil {
-		httputil.RespondJSON(w, 500, map[string]string{"error": err.Error()})
+		exception.InternalServerError.Write(w, err.Error())
 		return
 	}
 	httputil.RespondJSON(w, 200, map[string]bool{"ok": true})
@@ -531,30 +529,24 @@ func (h *Handler) BookNotesList(w http.ResponseWriter, r *http.Request) {
 	httputil.RespondJSON(w, 200, notes)
 }
 
-type CreateBookNoteInput struct {
-	ID     *int64          `json:"id,omitempty"`
-	BookID int64           `json:"bookId"`
-	Note   json.RawMessage `json:"note"`
-}
-
 // @Summary      创建/更新书籍笔记
 // @Tags         Book Notes
 // @Accept       json
 // @Produce      json
-// @Param        body body CreateBookNoteInput true "笔记内容"
+// @Param        body body CreateBookNoteReq true "笔记内容"
 // @Success      200  {object}  map[string]interface{}
 // @Security     BearerAuth
 // @Router       /v1/client/book-notes [post]
 func (h *Handler) BookNotesCreate(w http.ResponseWriter, r *http.Request) {
 	userID := u.GetUserID(r)
-	var input CreateBookNoteInput
-	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		httputil.RespondJSON(w, 400, map[string]string{"error": "invalid body"})
+	var input CreateBookNoteReq
+	if err := httputil.DecodeAndValidate(r, &input); err != nil {
+		exception.InvalidBody.Write(w)
 		return
 	}
 	exists, _ := h.bookRepo.ExistsByID(input.BookID)
 	if !exists {
-		writeNotFound(w, fmt.Sprintf("Book #%d not found", input.BookID))
+		BookNotFound.Write(w, fmt.Sprintf("Book #%d not found", input.BookID))
 		return
 	}
 	note := &data.BookNote{
@@ -566,14 +558,10 @@ func (h *Handler) BookNotesCreate(w http.ResponseWriter, r *http.Request) {
 		note.ID = *input.ID
 	}
 	if err := h.userRepo.UpsertBookNote(note); err != nil {
-		httputil.RespondJSON(w, 500, map[string]string{"error": err.Error()})
+		exception.InternalServerError.Write(w, err.Error())
 		return
 	}
 	httputil.RespondJSON(w, 200, note)
-}
-
-type UpdateBookNoteInput struct {
-	Note json.RawMessage `json:"note"`
 }
 
 // @Summary      更新书籍笔记
@@ -581,21 +569,21 @@ type UpdateBookNoteInput struct {
 // @Accept       json
 // @Produce      json
 // @Param        id   path int                true "笔记ID"
-// @Param        body body CreateBookNoteInput true "笔记内容"
+// @Param        body body UpdateBookNoteReq true "笔记内容"
 // @Success      200  {object}  map[string]interface{}
 // @Security     BearerAuth
 // @Router       /v1/client/book-notes/{id} [patch]
 func (h *Handler) BookNotesUpdate(w http.ResponseWriter, r *http.Request) {
 	userID := u.GetUserID(r)
 	id := u.PathInt(r, "id")
-	var input UpdateBookNoteInput
-	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		httputil.RespondJSON(w, 400, map[string]string{"error": "invalid body"})
+	var input UpdateBookNoteReq
+	if err := httputil.DecodeAndValidate(r, &input); err != nil {
+		exception.InvalidBody.Write(w)
 		return
 	}
 	note, err := h.userRepo.UpdateBookNote(id, userID, input.Note)
 	if err != nil {
-		writeNotFound(w, fmt.Sprintf("Book #%d not found", id))
+		BookNotFound.Write(w, fmt.Sprintf("Book #%d not found", id))
 		return
 	}
 	httputil.RespondJSON(w, 200, note)
@@ -612,7 +600,7 @@ func (h *Handler) BookNotesDelete(w http.ResponseWriter, r *http.Request) {
 	userID := u.GetUserID(r)
 	id := u.PathInt(r, "id")
 	if err := h.userRepo.DeleteBookNote(id, userID); err != nil {
-		writeNotFound(w, fmt.Sprintf("Book #%d not found", id))
+		BookNotFound.Write(w, fmt.Sprintf("Book #%d not found", id))
 		return
 	}
 	httputil.RespondJSON(w, 200, map[string]interface{}{"id": id})
@@ -622,22 +610,8 @@ func (h *Handler) BookNotesDeleteByPost(w http.ResponseWriter, r *http.Request) 
 	userID := u.GetUserID(r)
 	id := u.PathInt(r, "id")
 	if err := h.userRepo.DeleteBookNote(id, userID); err != nil {
-		writeNotFound(w, fmt.Sprintf("Book #%d not found", id))
+		BookNotFound.Write(w, fmt.Sprintf("Book #%d not found", id))
 		return
 	}
 	httputil.RespondJSON(w, 200, map[string]interface{}{"id": id})
-}
-
-func writeNotFound(w http.ResponseWriter, message string) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(404)
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"code":    20001,
-		"message": message,
-		"data": map[string]interface{}{
-			"name":                "BookNotFoundException",
-			"multilingualMessage": map[string]string{"zh_HK": "書籍不存在", "zh_cn": "书籍不存在", "en_us": "Book not found"},
-			"params":              map[string]interface{}{},
-		},
-	})
 }

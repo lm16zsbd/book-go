@@ -5,12 +5,12 @@ import (
 	"crypto/cipher"
 	"crypto/rand"
 	"crypto/rsa"
-	"crypto/sha256"
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/pem"
 	"fmt"
+	"os"
 	"strings"
 )
 
@@ -84,7 +84,7 @@ func RSAEncrypt(publicKeyPEM, payload string) (string, error) {
 		return "", fmt.Errorf("not an RSA public key")
 	}
 
-	encrypted, err := rsa.EncryptOAEP(sha256.New(), rand.Reader, rsaPub, []byte(payload), nil)
+	encrypted, err := rsa.EncryptPKCS1v15(rand.Reader, rsaPub, []byte(payload))
 	if err != nil {
 		return "", err
 	}
@@ -93,6 +93,9 @@ func RSAEncrypt(publicKeyPEM, payload string) (string, error) {
 }
 
 func DefaultIV() string {
+	if iv := os.Getenv("AES_IV"); iv != "" {
+		return iv
+	}
 	return "00000000000000000000000000000000"
 }
 

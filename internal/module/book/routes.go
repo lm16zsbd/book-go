@@ -20,6 +20,13 @@ func (r *Routes) Register(router chi.Router) {
 	router.Route("/books", func(sub chi.Router) {
 		sub.Get("/", httputil.Wrap(r.Handler.List))
 		sub.Get("/{id}", httputil.Wrap(r.Handler.GetByID))
+
+		sub.Post("/{bookId}/favourite", httputil.Wrap(r.Handler.ToggleFavourite))
+		sub.Post("/cancelFavourite", httputil.Wrap(r.Handler.BatchCancelFavourite))
+		sub.Get("/{bookId}/bookmarks", httputil.Wrap(r.Handler.GetBookmarks))
+		sub.Post("/{bookId}/bookmarks", httputil.Wrap(r.Handler.CreateBookmark))
+		sub.Get("/{bookId}/annotations", httputil.Wrap(r.Handler.GetAnnotations))
+		sub.Post("/{bookId}/annotations", httputil.Wrap(r.Handler.CreateAnnotation))
 	})
 
 	router.Route("/categories", func(sub chi.Router) {
@@ -50,6 +57,13 @@ func (r *Routes) Register(router chi.Router) {
 	router.Route("/reading-pos", func(sub chi.Router) {
 		sub.Get("/", httputil.Wrap(r.Handler.GetReadingPos))
 		sub.Post("/", httputil.Wrap(r.Handler.ReportReadingPos))
+	})
+
+	router.Delete("/bookmarks/{bookmarkId}", httputil.Wrap(r.Handler.DeleteBookmark))
+
+	router.Route("/reader-config", func(sub chi.Router) {
+		sub.Get("/", httputil.Wrap(r.Handler.GetReaderConfig))
+		sub.Post("/", httputil.Wrap(r.Handler.SaveReaderConfig))
 	})
 
 	router.Get("/search", httputil.Wrap(r.Handler.Search))

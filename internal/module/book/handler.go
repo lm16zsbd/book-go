@@ -519,6 +519,98 @@ func (h *Handler) BookNotesDelete(w http.ResponseWriter, r *http.Request) (any, 
 	return map[string]interface{}{"id": id}, nil
 }
 
+func (h *Handler) ToggleFavourite(w http.ResponseWriter, r *http.Request) (any, error) {
+	userID := u.GetUserID(r)
+	bookID := u.PathInt(r, "bookId")
+	isFavourite, err := h.userRepo.ToggleFavourite(userID, bookID)
+	if err != nil {
+		return nil, exception.InternalServerError.WithMsg(err.Error())
+	}
+	return map[string]bool{"isFavourite": isFavourite}, nil
+}
+
+func (h *Handler) BatchCancelFavourite(w http.ResponseWriter, r *http.Request) (any, error) {
+	userID := u.GetUserID(r)
+	if userID == 0 {
+		return nil, exception.Unauthorized
+	}
+	var input u.BatchCancelFavouriteReq
+	httputil.DecodeAndValidate(r, &input)
+
+	cancelled := int64(0)
+	if input.SelectAll != nil && *input.SelectAll {
+		var excludeIDs []int64
+		if input.ExcludeIDs != nil {
+			excludeIDs = *input.ExcludeIDs
+		}
+		cancelled = h.userRepo.BatchCancelAllFavourite(userID, excludeIDs)
+	} else if input.BookIDs != nil && len(*input.BookIDs) > 0 {
+		cancelled = h.userRepo.BatchCancelFavourite(userID, *input.BookIDs)
+	}
+
+	return map[string]interface{}{"cancelled": cancelled}, nil
+}
+
+func (h *Handler) GetBookmarks(w http.ResponseWriter, r *http.Request) (any, error) {
+	userID := u.GetUserID(r)
+	bookID := u.PathInt(r, "bookId")
+	bookmarks, _ := h.userRepo.FindBookmarks(userID, bookID)
+	return bookmarks, nil
+}
+
+func (h *Handler) CreateBookmark(w http.ResponseWriter, r *http.Request) (any, error) {
+	userID := u.GetUserID(r)
+	bookID := u.PathInt(r, "bookId")
+	var bm data.Bookmark
+	json.NewDecoder(r.Body).Decode(&bm)
+	bm.UserID = userID
+	bm.BookID = bookID
+	h.userRepo.CreateBookmark(&bm)
+	return bm, nil
+}
+
+func (h *Handler) DeleteBookmark(w http.ResponseWriter, r *http.Request) (any, error) {
+	id := u.PathInt(r, "bookmarkId")
+	h.userRepo.DeleteBookmark(id)
+	return map[string]bool{"ok": true}, nil
+}
+
+func (h *Handler) GetAnnotations(w http.ResponseWriter, r *http.Request) (any, error) {
+	userID := u.GetUserID(r)
+	bookID := u.PathInt(r, "bookId")
+	annotations, _ := h.userRepo.FindAnnotations(userID, bookID)
+	return annotations, nil
+}
+
+func (h *Handler) CreateAnnotation(w http.ResponseWriter, r *http.Request) (any, error) {
+	userID := u.GetUserID(r)
+	bookID := u.PathInt(r, "bookId")
+	var a data.Annotation
+	json.NewDecoder(r.Body).Decode(&a)
+	a.UserID = userID
+	a.BookID = bookID
+	h.userRepo.CreateAnnotation(&a)
+	return a, nil
+}
+
+func (h *Handler) GetReaderConfig(w http.ResponseWriter, r *http.Request) (any, error) {
+	userID := u.GetUserID(r)
+	cfg, err := h.userRepo.GetReaderConfig(userID)
+	if err != nil {
+		return map[string]interface{}{"theme": "light", "fontSize": 16}, nil
+	}
+	return cfg, nil
+}
+
+func (h *Handler) SaveReaderConfig(w http.ResponseWriter, r *http.Request) (any, error) {
+	userID := u.GetUserID(r)
+	var cfg data.ReaderConfig
+	json.NewDecoder(r.Body).Decode(&cfg)
+	cfg.UserID = userID
+	h.userRepo.SaveReaderConfig(&cfg)
+	return cfg, nil
+}
+
 func (h *Handler) BookNotesDeleteByPost(w http.ResponseWriter, r *http.Request) (any, error) {
 	userID := u.GetUserID(r)
 	id := u.PathInt(r, "id")

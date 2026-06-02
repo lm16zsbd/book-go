@@ -131,19 +131,6 @@ definitions:
       total:
         type: integer
     type: object
-  user.BatchCancelFavouriteReq:
-    properties:
-      bookIds:
-        items:
-          type: integer
-        type: array
-      excludeIds:
-        items:
-          type: integer
-        type: array
-      selectAll:
-        type: boolean
-    type: object
   user.LoginReq:
     properties:
       email:
@@ -322,28 +309,6 @@ paths:
       summary: 更新书籍笔记
       tags:
       - Book Notes
-  /v1/client/bookmarks/{bookmarkId}:
-    delete:
-      parameters:
-      - description: 书签ID
-        in: path
-        name: bookmarkId
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            additionalProperties:
-              type: boolean
-            type: object
-      security:
-      - BearerAuth: []
-      summary: 删除书签
-      tags:
-      - User
   /v1/client/books:
     get:
       description: 分页获取书籍
@@ -377,132 +342,6 @@ paths:
       summary: 获取书籍列表
       tags:
       - Book
-  /v1/client/books/{bookId}/annotations:
-    get:
-      parameters:
-      - description: 书籍ID
-        in: path
-        name: bookId
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            items:
-              additionalProperties: true
-              type: object
-            type: array
-      security:
-      - BearerAuth: []
-      summary: 获取批注列表
-      tags:
-      - User
-    post:
-      consumes:
-      - application/json
-      parameters:
-      - description: 书籍ID
-        in: path
-        name: bookId
-        required: true
-        type: integer
-      - description: 批注信息
-        in: body
-        name: body
-        required: true
-        schema:
-          additionalProperties: true
-          type: object
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            additionalProperties: true
-            type: object
-      security:
-      - BearerAuth: []
-      summary: 添加批注
-      tags:
-      - User
-  /v1/client/books/{bookId}/bookmarks:
-    get:
-      parameters:
-      - description: 书籍ID
-        in: path
-        name: bookId
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            items:
-              additionalProperties: true
-              type: object
-            type: array
-      security:
-      - BearerAuth: []
-      summary: 获取书签列表
-      tags:
-      - User
-    post:
-      consumes:
-      - application/json
-      parameters:
-      - description: 书籍ID
-        in: path
-        name: bookId
-        required: true
-        type: integer
-      - description: 书签信息
-        in: body
-        name: body
-        required: true
-        schema:
-          additionalProperties: true
-          type: object
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            additionalProperties: true
-            type: object
-      security:
-      - BearerAuth: []
-      summary: 添加书签
-      tags:
-      - User
-  /v1/client/books/{bookId}/favourite:
-    post:
-      parameters:
-      - description: 书籍ID
-        in: path
-        name: bookId
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            additionalProperties:
-              type: boolean
-            type: object
-      security:
-      - BearerAuth: []
-      summary: 收藏/取消收藏
-      tags:
-      - User
   /v1/client/books/{id}:
     get:
       parameters:
@@ -528,30 +367,6 @@ paths:
       summary: 获取书籍详情
       tags:
       - Book
-  /v1/client/books/cancelFavourite:
-    post:
-      consumes:
-      - application/json
-      parameters:
-      - description: 批量取消收藏参数
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/user.BatchCancelFavouriteReq'
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Created
-          schema:
-            additionalProperties: true
-            type: object
-      security:
-      - BearerAuth: []
-      summary: 批量取消收藏
-      tags:
-      - User
   /v1/client/booksKey:
     get:
       description: 返回加密后的书籍密钥
@@ -768,45 +583,6 @@ paths:
       summary: 获取出版社下书籍
       tags:
       - Book
-  /v1/client/reader-config:
-    get:
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            additionalProperties: true
-            type: object
-      security:
-      - BearerAuth: []
-      summary: 获取阅读器配置
-      tags:
-      - User
-    post:
-      consumes:
-      - application/json
-      parameters:
-      - description: 配置信息
-        in: body
-        name: body
-        required: true
-        schema:
-          additionalProperties: true
-          type: object
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            additionalProperties: true
-            type: object
-      security:
-      - BearerAuth: []
-      summary: 保存阅读器配置
-      tags:
-      - User
   /v1/client/reading-pos:
     get:
       parameters:

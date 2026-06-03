@@ -5,7 +5,7 @@ import (
 	"crypto/cipher"
 	"crypto/rand"
 	"crypto/rsa"
-	"crypto/sha256"
+	"crypto/sha1"
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/hex"
@@ -85,7 +85,7 @@ func RSAEncrypt(publicKeyPEM, payload string) (string, error) {
 		return "", fmt.Errorf("not an RSA public key")
 	}
 
-	encrypted, err := rsa.EncryptOAEP(sha256.New(), rand.Reader, rsaPub, []byte(payload), nil)
+	encrypted, err := rsa.EncryptOAEP(sha1.New(), rand.Reader, rsaPub, []byte(payload), nil)
 	if err != nil {
 		return "", err
 	}

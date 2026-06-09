@@ -22,7 +22,7 @@ import (
 
 type TransInput struct {
 	Data     string `json:"data"`
-	Language string `json:"language"`
+	Language string `json:"language" enums:"en,es,ar,fr,pt,ru,id,zh-hk,zh-cn,zh-tw,English,Spanish,Arabic,French,Portuguese,Russian,Indonesian,Chinese"`
 }
 
 // @Summary      AI翻译

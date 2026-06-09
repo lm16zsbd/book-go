@@ -1119,7 +1119,27 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "language": {
-                    "type": "string"
+                    "type": "string",
+                    "enum": [
+                        "en",
+                        "es",
+                        "ar",
+                        "fr",
+                        "pt",
+                        "ru",
+                        "id",
+                        "zh-hk",
+                        "zh-cn",
+                        "zh-tw",
+                        "English",
+                        "Spanish",
+                        "Arabic",
+                        "French",
+                        "Portuguese",
+                        "Russian",
+                        "Indonesian",
+                        "Chinese"
+                    ]
                 }
             }
         },

@@ -2,6 +2,7 @@ package home
 
 import (
 	"net/http"
+	"time"
 
 	"serica-go/internal/data"
 	u "serica-go/internal/module/user"
@@ -70,6 +71,15 @@ func (h *Handler) Home(w http.ResponseWriter, r *http.Request) (any, error) {
 // @Success      200  {array}   home.HomepageSection
 // @Router       /v1/client/homepage [get]
 func (h *Handler) Homepage(w http.ResponseWriter, r *http.Request) (any, error) {
+	const cacheKey = "home:sections:v2"
+
+	if h.redis != nil {
+		var cached []HomepageSection
+		if err := h.redis.GetJSON(r.Context(), cacheKey, &cached); err == nil && len(cached) > 0 {
+			return cached, nil
+		}
+	}
+
 	sections := make([]HomepageSection, 0, len(homeSectionIDs))
 
 	for i, ids := range homeSectionIDs {
@@ -80,7 +90,6 @@ func (h *Handler) Homepage(w http.ResponseWriter, r *http.Request) (any, error) 
 			title = homeSectionTitles[i]
 		}
 
-		// Maintain original order from IDs
 		ordered := make([]data.Book, 0, len(ids))
 		bookMap := make(map[int64]data.Book, len(ids))
 		for _, b := range books {
@@ -97,6 +106,10 @@ func (h *Handler) Homepage(w http.ResponseWriter, r *http.Request) (any, error) 
 			Items: ordered,
 			Total: int64(len(ids)),
 		})
+	}
+
+	if h.redis != nil {
+		_ = h.redis.SetJSON(r.Context(), cacheKey, sections, time.Hour)
 	}
 
 	return sections, nil

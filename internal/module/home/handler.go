@@ -21,6 +21,18 @@ func NewHandler(bookRepo *data.BookRepo, userRepo *data.UserRepo, redis *data.Re
 
 var homeBannerIds = []int64{103, 202, 183, 153, 193, 163}
 
+var homeSectionIDs = [][]int64{
+	{103, 202, 183, 153, 193, 163, 185, 200, 201, 199, 158, 186},
+	{191, 131, 171, 179, 190, 157, 189, 143, 167, 188, 154, 180},
+	{196, 197, 195, 192, 162, 194, 173, 164, 181, 136, 128, 198},
+}
+
+var homeSectionTitles = []string{
+	"電子書推介",
+	"最受歡迎電子書館藏",
+	"自訂書籍展示模組",
+}
+
 // @Summary      首页数据
 // @Description  获取首页 Banner 和分类
 // @Tags         Home
@@ -58,12 +70,33 @@ func (h *Handler) Home(w http.ResponseWriter, r *http.Request) (any, error) {
 // @Success      200  {array}   home.HomepageSection
 // @Router       /v1/client/homepage [get]
 func (h *Handler) Homepage(w http.ResponseWriter, r *http.Request) (any, error) {
-	recommended, recTotal, _ := h.bookRepo.Paginate(data.BookFilter{Order: "DESC"}, 0, 10)
-	newest, _, _ := h.bookRepo.Paginate(data.BookFilter{Order: "DESC"}, 0, 10)
+	sections := make([]HomepageSection, 0, len(homeSectionIDs))
 
-	sections := []HomepageSection{
-		{Title: "電子書推介", Items: recommended, Total: recTotal},
-		{Title: "最新上架", Items: newest},
+	for i, ids := range homeSectionIDs {
+		books, _ := h.bookRepo.FindByIDs(ids)
+
+		title := ""
+		if i < len(homeSectionTitles) {
+			title = homeSectionTitles[i]
+		}
+
+		// Maintain original order from IDs
+		ordered := make([]data.Book, 0, len(ids))
+		bookMap := make(map[int64]data.Book, len(ids))
+		for _, b := range books {
+			bookMap[b.ID] = b
+		}
+		for _, id := range ids {
+			if b, ok := bookMap[id]; ok {
+				ordered = append(ordered, b)
+			}
+		}
+
+		sections = append(sections, HomepageSection{
+			Title: title,
+			Items: ordered,
+			Total: int64(len(ids)),
+		})
 	}
 
 	return sections, nil

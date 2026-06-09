@@ -908,7 +908,7 @@ const docTemplate = `{
                 "summary": "AI翻译",
                 "parameters": [
                     {
-                        "description": "翻译参数",
+                        "description": "翻译参数(language: English / Spanish / Arabic / French / Portuguese / Russian / Indonesian / 中文+粤语自动互译)",
                         "name": "body",
                         "in": "body",
                         "required": true,

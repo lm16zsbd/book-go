@@ -29,7 +29,7 @@ type TransInput struct {
 // @Tags         Book
 // @Accept       json
 // @Produce      json
-// @Param        body body TransInput true "翻译参数"
+// @Param        body body TransInput true "翻译参数(language: English / Spanish / Arabic / French / Portuguese / Russian / Indonesian / 中文+粤语自动互译)"
 // @Success      200  {string} string
 // @Security     BearerAuth
 // @Router       /v1/client/trans [post]
@@ -48,13 +48,24 @@ func (h *Handler) Trans(w http.ResponseWriter, r *http.Request) (any, error) {
 	_ = userID
 
 	langMap := map[string]string{
-		"en":    "English",
-		"英文":    "English",
-		"zh-hk": "Traditional Chinese (zh-HK)",
-		"繁体中文":  "Traditional Chinese (zh-HK)",
-		"zh-tw": "Traditional Chinese (zh-HK)",
-		"zh-cn": "Simplified Chinese (zh-CN)",
-		"简体中文":  "Simplified Chinese (zh-CN)",
+		"en":         "English",
+		"English":    "English",
+		"zh-hk":      "Traditional Chinese (zh-HK)",
+		"zh-tw":      "Traditional Chinese (zh-HK)",
+		"zh-cn":      "Simplified Chinese (zh-CN)",
+		"Chinese":    "Simplified Chinese (zh-CN)",
+		"es":         "Spanish",
+		"Spanish":    "Spanish",
+		"ar":         "Arabic",
+		"Arabic":     "Arabic",
+		"fr":         "French",
+		"French":     "French",
+		"pt":         "Portuguese",
+		"Portuguese": "Portuguese",
+		"ru":         "Russian",
+		"Russian":    "Russian",
+		"id":         "Indonesian",
+		"Indonesian": "Indonesian",
 	}
 
 	target := ""

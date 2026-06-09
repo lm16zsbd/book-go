@@ -726,7 +726,8 @@ paths:
       consumes:
       - application/json
       parameters:
-      - description: 翻译参数
+      - description: '翻译参数(language: English / Spanish / Arabic / French / Portuguese
+          / Russian / Indonesian / 中文+粤语自动互译)'
         in: body
         name: body
         required: true

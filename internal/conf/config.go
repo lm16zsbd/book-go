@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strconv"
 
+	"github.com/go-viper/mapstructure/v2"
 	"github.com/joho/godotenv"
 	"github.com/spf13/viper"
 )
@@ -148,7 +149,12 @@ func Load(configPath string) (*Bootstrap, error) {
 	overrideFromEnv(v)
 
 	var bc Bootstrap
-	if err := v.Unmarshal(&bc); err != nil {
+	// viper.Unmarshal defaults to the "mapstructure" tag; our structs use "yaml"
+	// tags, so multi-word fields (e.g. access_key_id -> AccessKeyID) would not
+	// bind. Tell the decoder to honor the yaml tags.
+	if err := v.Unmarshal(&bc, func(dc *mapstructure.DecoderConfig) {
+		dc.TagName = "yaml"
+	}); err != nil {
 		return nil, fmt.Errorf("unmarshal config: %w", err)
 	}
 

@@ -145,6 +145,28 @@ func (h *Handler) getOpenAIKey() string {
 	return ""
 }
 
+// escapeXml 转义 XML 特殊字符
+func escapeXml(text string) string {
+	buffer := new(bytes.Buffer)
+	for _, r := range text {
+		switch r {
+		case '&':
+			buffer.WriteString("&amp;")
+		case '<':
+			buffer.WriteString("&lt;")
+		case '>':
+			buffer.WriteString("&gt;")
+		case '"':
+			buffer.WriteString("&quot;")
+		case '\'':
+			buffer.WriteString("&apos;")
+		default:
+			buffer.WriteRune(r)
+		}
+	}
+	return buffer.String()
+}
+
 type TTSInput struct {
 	Text         string `json:"text"`
 	LanguageCode string `json:"languageCode"`
@@ -185,13 +207,20 @@ func (h *Handler) TextToSpeech(w http.ResponseWriter, r *http.Request) (any, err
 		)),
 	)
 	if err != nil {
+		fmt.Printf("TTS config failed: %v\n", err)
+
 		httputil.RespondJSON(w, 500, map[string]string{"error": "TTS service error"})
 		return nil, nil
 	}
 
 	pollyClient := polly.NewFromConfig(cfg)
+
+	// 对文本进行 XML 转义并包装在 <speak> 标签中
+	ssmlText := fmt.Sprintf("<speak>%s</speak>", escapeXml(input.Text))
+
 	speechInput := &polly.SynthesizeSpeechInput{
-		Text:         aws.String(input.Text),
+		Text:         aws.String(ssmlText),    // 使用 SSML 文本
+		TextType:     pollytypes.TextTypeSsml, // 明确指定文本类型为 SSML
 		OutputFormat: pollytypes.OutputFormatMp3,
 		VoiceId:      pollytypes.VoiceId(voiceID),
 		Engine:       engine,
@@ -207,6 +236,7 @@ func (h *Handler) TextToSpeech(w http.ResponseWriter, r *http.Request) (any, err
 
 	output, err := pollyClient.SynthesizeSpeech(context.Background(), speechInput)
 	if err != nil {
+		fmt.Printf("TTS synthesis failed: %v\n", err)
 		httputil.RespondJSON(w, 500, map[string]string{"error": "TTS synthesis failed"})
 		return nil, nil
 	}

@@ -253,7 +253,8 @@ func (r *BookRepo) Paginate(filter BookFilter, offset, limit int) ([]Book, int64
 		q = q.Where("title ILIKE ? OR author ILIKE ? OR isbn ILIKE ?", "%"+filter.Keyword+"%", "%"+filter.Keyword+"%", "%"+filter.Keyword+"%")
 	}
 	if filter.Category != "" {
-		q = q.Where("category ILIKE ?", "%"+filter.Category+"%")
+		// category is text[] — match when any element contains the keyword.
+		q = q.Where("EXISTS (SELECT 1 FROM unnest(category) AS c WHERE c ILIKE ?)", "%"+filter.Category+"%")
 	}
 	if len(filter.FileTypes) > 0 {
 		q = q.Where("file_type IN ?", filter.FileTypes)
@@ -289,6 +290,25 @@ func (r *BookRepo) Search(keyword string, offset, limit int) ([]Book, int64, err
 	q.Count(&total)
 	books := make([]Book, 0)
 	q.Order("created_at DESC").Offset(offset).Limit(limit).Find(&books)
+	return books, total, nil
+}
+
+// FindRecommendations returns books that share at least one category with the
+// given book (category is a text[] — a book may belong to multiple types),
+// ranking books by the same author first, then books by other authors.
+func (r *BookRepo) FindRecommendations(bookID int64, author string, offset, limit int) ([]Book, int64, error) {
+	// category && (...) : array overlap — true when the two text[] share any element.
+	q := r.db.Model(&Book{}).
+		Where("id != ?", bookID).
+		Where("category && (SELECT category FROM books WHERE id = ?)", bookID)
+
+	var total int64
+	q.Count(&total)
+
+	books := make([]Book, 0)
+	q.Order(gorm.Expr("CASE WHEN author = ? THEN 0 ELSE 1 END", author)).
+		Order("created_at DESC").
+		Offset(offset).Limit(limit).Find(&books)
 	return books, total, nil
 }
 

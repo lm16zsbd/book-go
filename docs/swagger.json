@@ -339,6 +339,59 @@
                 }
             }
         },
+        "/v1/client/books/{id}/recommend": {
+            "get": {
+                "description": "推荐逻辑：先选同一作者及同一类型的书，次选不同作者但同一类型的书",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Book"
+                ],
+                "summary": "获取相似书籍",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "书籍ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "页码",
+                        "name": "pageIndex",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 10,
+                        "description": "每页数量",
+                        "name": "pageSize",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/v1/client/booksKey": {
             "get": {
                 "security": [
@@ -1159,7 +1212,10 @@
                     "type": "string"
                 },
                 "category": {
-                    "type": "string"
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 },
                 "coverUrl": {
                     "type": "string"

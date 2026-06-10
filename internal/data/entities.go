@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"time"
 
+	"github.com/lib/pq"
 	"gorm.io/gorm"
 )
 
@@ -38,21 +39,21 @@ type UserSession struct {
 func (UserSession) TableName() string { return "user_sessions" }
 
 type Book struct {
-	ID            int64      `gorm:"primaryKey;autoIncrement" json:"id"`
-	Title         string     `json:"title"`
-	Author        string     `json:"author"`
-	ISBN          string     `gorm:"column:isbn" json:"isbn,omitempty"`
-	Desc          string     `gorm:"type:text" json:"desc,omitempty"`
-	CoverUrl      string     `gorm:"column:cover_url" json:"coverUrl"`
-	FileType      string     `gorm:"column:file_type;default:pdf" json:"fileType,omitempty"`
-	Publisher     string     `json:"publisher,omitempty"`
-	PublishDate   *time.Time `gorm:"column:published_at" json:"publishDate,omitempty"`
-	Category      string     `gorm:"type:text" json:"category,omitempty"`
-	Language      string     `gorm:"type:varchar(20)" json:"language,omitempty"`
-	Key           string     `gorm:"column:key" json:"key,omitempty"`
-	Url           string     `gorm:"column:url" json:"url,omitempty"`
-	CreatedAt     time.Time  `gorm:"autoCreateTime" json:"createdAt"`
-	UpdatedAt     time.Time  `gorm:"autoUpdateTime" json:"updatedAt"`
+	ID          int64          `gorm:"primaryKey;autoIncrement" json:"id"`
+	Title       string         `json:"title"`
+	Author      string         `json:"author"`
+	ISBN        string         `gorm:"column:isbn" json:"isbn,omitempty"`
+	Desc        string         `gorm:"type:text" json:"desc,omitempty"`
+	CoverUrl    string         `gorm:"column:cover_url" json:"coverUrl"`
+	FileType    string         `gorm:"column:file_type;default:pdf" json:"fileType,omitempty"`
+	Publisher   string         `json:"publisher,omitempty"`
+	PublishDate *time.Time     `gorm:"column:published_at" json:"publishDate,omitempty"`
+	Category    pq.StringArray `gorm:"type:text[]" json:"category,omitempty" swaggertype:"array,string"`
+	Language    string         `gorm:"type:varchar(20)" json:"language,omitempty"`
+	Key         string         `gorm:"column:key" json:"key,omitempty"`
+	Url         string         `gorm:"column:url" json:"url,omitempty"`
+	CreatedAt   time.Time      `gorm:"autoCreateTime" json:"createdAt"`
+	UpdatedAt   time.Time      `gorm:"autoUpdateTime" json:"updatedAt"`
 }
 
 func (Book) TableName() string { return "books" }

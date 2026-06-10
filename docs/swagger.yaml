@@ -59,7 +59,9 @@ definitions:
       author:
         type: string
       category:
-        type: string
+        items:
+          type: string
+        type: array
       coverUrl:
         type: string
       createdAt:
@@ -384,6 +386,42 @@ paths:
               type: string
             type: object
       summary: 获取书籍详情
+      tags:
+      - Book
+  /v1/client/books/{id}/recommend:
+    get:
+      description: 推荐逻辑：先选同一作者及同一类型的书，次选不同作者但同一类型的书
+      parameters:
+      - description: 书籍ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - default: 1
+        description: 页码
+        in: query
+        name: pageIndex
+        type: integer
+      - default: 10
+        description: 每页数量
+        in: query
+        name: pageSize
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: 获取相似书籍
       tags:
       - Book
   /v1/client/booksKey:

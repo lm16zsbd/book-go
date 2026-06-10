@@ -147,3 +147,12 @@ type BookIDQuery struct {
 type ReadingPosQuery struct {
 	BookID int64 `query:"bookId,0"`
 }
+
+type RecommendQuery struct {
+	PageIndex int `query:"pageIndex,1"`
+	PageSize  int `query:"pageSize,10"`
+}
+
+func (q RecommendQuery) Offset() int {
+	return (q.PageIndex - 1) * q.PageSize
+}

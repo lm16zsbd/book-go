@@ -20,6 +20,7 @@ func (r *Routes) Register(router chi.Router) {
 	router.Route("/books", func(sub chi.Router) {
 		sub.Get("/", httputil.Wrap(r.Handler.List))
 		sub.Get("/{id}", httputil.Wrap(r.Handler.GetByID))
+		sub.Get("/{id}/recommend", httputil.Wrap(r.Handler.Recommend))
 
 		sub.Post("/{bookId}/favourite", httputil.Wrap(r.Handler.ToggleFavourite))
 		sub.Post("/cancelFavourite", httputil.Wrap(r.Handler.BatchCancelFavourite))

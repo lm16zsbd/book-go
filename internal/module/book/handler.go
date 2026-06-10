@@ -99,6 +99,35 @@ func (h *Handler) GetByID(w http.ResponseWriter, r *http.Request) (any, error) {
 	return result, nil
 }
 
+// @Summary      获取相似书籍
+// @Description  推荐逻辑：先选同一作者及同一类型的书，次选不同作者但同一类型的书
+// @Tags         Book
+// @Produce      json
+// @Param        id        path  int true  "书籍ID"
+// @Param        pageIndex query int false "页码"   default(1)
+// @Param        pageSize  query int false "每页数量" default(10)
+// @Success      200  {object}  map[string]interface{}
+// @Failure      404  {object}  map[string]string
+// @Router       /v1/client/books/{id}/recommend [get]
+func (h *Handler) Recommend(w http.ResponseWriter, r *http.Request) (any, error) {
+	bookID := u.PathInt(r, "id")
+
+	var q RecommendQuery
+	binder.BindQuery(r, &q)
+
+	book, err := h.bookRepo.FindByID(bookID)
+	if err != nil {
+		return nil, BookNotFound
+	}
+
+	books, total, err := h.bookRepo.FindRecommendations(bookID, book.Author, q.Offset(), q.PageSize)
+	if err != nil {
+		return dto.NewPageResult([]data.Book{}, 0, q.PageIndex, q.PageSize), nil
+	}
+
+	return dto.NewPageResult(books, total, q.PageIndex, q.PageSize), nil
+}
+
 func (h *Handler) getWrapKey(ctx context.Context, bookID int64, aesKey string) string {
 	cacheKey := fmt.Sprintf("book:wrapkey:v3:%d", bookID)
 	if h.redis != nil {

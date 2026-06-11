@@ -173,6 +173,25 @@ type TTSInput struct {
 	SSMLGender   string `json:"ssmlGender"`
 }
 
+// pollyVoiceID 按语言代码选择 Polly 语音，逻辑与 sericamind-service 一致
+func pollyVoiceID(languageCode, ssmlGender string) pollytypes.VoiceId {
+	switch languageCode {
+	case "cmn-CN":
+		return pollytypes.VoiceIdZhiyu
+	case "yue-HK":
+		return pollytypes.VoiceIdHiujin
+	case "en-GB":
+		return pollytypes.VoiceIdEmma
+	case "en-US":
+		if ssmlGender == "MALE" {
+			return pollytypes.VoiceIdMatthew
+		}
+		return pollytypes.VoiceIdJoanna
+	default:
+		return pollytypes.VoiceIdZhiyu
+	}
+}
+
 // @Summary      AWS Polly 文字转语音
 // @Tags         Book
 // @Accept       json
@@ -192,10 +211,18 @@ func (h *Handler) TextToSpeech(w http.ResponseWriter, r *http.Request) (any, err
 		return nil, nil
 	}
 	if input.LanguageCode == "" {
-		input.LanguageCode = "yue-HK"
+		input.LanguageCode = "cmn-CN"
 	}
 
-	voiceID := "Hiujin"
+	// 按语言选择对应的 Polly 语音（与 sericamind-service 保持一致）
+	voiceID := pollyVoiceID(input.LanguageCode, input.SSMLGender)
+
+	// Polly 的粤语 LanguageCode 为 yue-CN，而对外契约使用 yue-HK
+	pollyLang := input.LanguageCode
+	if pollyLang == "yue-HK" {
+		pollyLang = "yue-CN"
+	}
+
 	engine := pollytypes.EngineNeural
 
 	cfg, err := config.LoadDefaultConfig(context.Background(),
@@ -222,16 +249,9 @@ func (h *Handler) TextToSpeech(w http.ResponseWriter, r *http.Request) (any, err
 		Text:         aws.String(ssmlText),    // 使用 SSML 文本
 		TextType:     pollytypes.TextTypeSsml, // 明确指定文本类型为 SSML
 		OutputFormat: pollytypes.OutputFormatMp3,
-		VoiceId:      pollytypes.VoiceId(voiceID),
+		VoiceId:      voiceID,
 		Engine:       engine,
-	}
-
-	if input.LanguageCode != "" {
-		langCode := pollytypes.LanguageCode(input.LanguageCode)
-		speechInput.LanguageCode = langCode
-		if voiceID == "Hiujin" && input.LanguageCode == "cmn-CN" {
-			speechInput.VoiceId = pollytypes.VoiceIdZhiyu
-		}
+		LanguageCode: pollytypes.LanguageCode(pollyLang),
 	}
 
 	output, err := pollyClient.SynthesizeSpeech(context.Background(), speechInput)

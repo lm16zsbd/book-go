@@ -173,6 +173,54 @@ type TTSInput struct {
 	SSMLGender   string `json:"ssmlGender"`
 }
 
+// ttsMaxChars 单次 Polly 合成的文本长度上限（neural 计费字符约 3000，留余量）。
+const ttsMaxChars = 2800
+
+// splitTextForTTS 将长文本按字符数切分，尽量在句子/空白边界断开，
+// 使每段都在 Polly 单次合成上限内。
+func splitTextForTTS(text string, maxChars int) []string {
+	runes := []rune(text)
+	if len(runes) <= maxChars {
+		return []string{text}
+	}
+	var chunks []string
+	start := 0
+	for start < len(runes) {
+		end := start + maxChars
+		if end >= len(runes) {
+			chunks = append(chunks, string(runes[start:]))
+			break
+		}
+		// 优先在句子结束符处断开
+		split := -1
+		for i := end; i > start; i-- {
+			switch runes[i-1] {
+			case '。', '！', '？', '!', '?', '.', '\n', '；', ';':
+				split = i
+			}
+			if split != -1 {
+				break
+			}
+		}
+		// 退而求其次，在空白处断开
+		if split == -1 {
+			for i := end; i > start; i-- {
+				if runes[i-1] == ' ' || runes[i-1] == '\t' {
+					split = i
+					break
+				}
+			}
+		}
+		// 实在没有边界就硬切
+		if split <= start {
+			split = end
+		}
+		chunks = append(chunks, string(runes[start:split]))
+		start = split
+	}
+	return chunks
+}
+
 // pollyVoiceID 按语言代码选择 Polly 语音，逻辑与 sericamind-service 一致
 func pollyVoiceID(languageCode, ssmlGender string) pollytypes.VoiceId {
 	switch languageCode {
@@ -242,34 +290,40 @@ func (h *Handler) TextToSpeech(w http.ResponseWriter, r *http.Request) (any, err
 
 	pollyClient := polly.NewFromConfig(cfg)
 
-	// 对文本进行 XML 转义并包装在 <speak> 标签中
-	ssmlText := fmt.Sprintf("<speak>%s</speak>", escapeXml(input.Text))
+	// Polly SynthesizeSpeech 单次有字符上限（neural 约 3000 计费字符），
+	// 长文本需分块逐段合成后再拼接 MP3。
+	var audioData bytes.Buffer
+	for _, chunk := range splitTextForTTS(input.Text, ttsMaxChars) {
+		// 对文本进行 XML 转义并包装在 <speak> 标签中
+		ssmlText := fmt.Sprintf("<speak>%s</speak>", escapeXml(chunk))
 
-	speechInput := &polly.SynthesizeSpeechInput{
-		Text:         aws.String(ssmlText),    // 使用 SSML 文本
-		TextType:     pollytypes.TextTypeSsml, // 明确指定文本类型为 SSML
-		OutputFormat: pollytypes.OutputFormatMp3,
-		VoiceId:      voiceID,
-		Engine:       engine,
-		LanguageCode: pollytypes.LanguageCode(pollyLang),
-	}
+		speechInput := &polly.SynthesizeSpeechInput{
+			Text:         aws.String(ssmlText),    // 使用 SSML 文本
+			TextType:     pollytypes.TextTypeSsml, // 明确指定文本类型为 SSML
+			OutputFormat: pollytypes.OutputFormatMp3,
+			VoiceId:      voiceID,
+			Engine:       engine,
+			LanguageCode: pollytypes.LanguageCode(pollyLang),
+		}
 
-	output, err := pollyClient.SynthesizeSpeech(context.Background(), speechInput)
-	if err != nil {
-		fmt.Printf("TTS synthesis failed: %v\n", err)
-		httputil.RespondJSON(w, 500, map[string]string{"error": "TTS synthesis failed"})
-		return nil, nil
-	}
+		output, err := pollyClient.SynthesizeSpeech(context.Background(), speechInput)
+		if err != nil {
+			fmt.Printf("TTS synthesis failed: %v\n", err)
+			httputil.RespondJSON(w, 500, map[string]string{"error": "TTS synthesis failed"})
+			return nil, nil
+		}
 
-	audioData, err := io.ReadAll(output.AudioStream)
-	if err != nil {
-		httputil.RespondJSON(w, 500, map[string]string{"error": "failed to read audio data"})
-		return nil, nil
+		if _, err := io.Copy(&audioData, output.AudioStream); err != nil {
+			output.AudioStream.Close()
+			httputil.RespondJSON(w, 500, map[string]string{"error": "failed to read audio data"})
+			return nil, nil
+		}
+		output.AudioStream.Close()
 	}
 
 	w.Header().Set("Content-Type", "audio/mpeg")
 	w.Header().Set("Content-Disposition", "inline; filename=speech.mp3")
 	w.WriteHeader(http.StatusOK)
-	w.Write(audioData)
+	w.Write(audioData.Bytes())
 	return nil, nil
 }
